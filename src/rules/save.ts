@@ -10,6 +10,7 @@ export function serialize(state: GameState): string {
 import { newCountry, validCountry, MARKET_CROPS } from './country';
 import { FISH } from '../data/fish';
 import { newVillage } from './village';
+import { newEstate, validEstate } from './estate';
 
 type Raw = Record<string, unknown>;
 
@@ -72,6 +73,12 @@ function migrateV2toV3(s: Raw): void {
   s.version = 3;
 }
 
+/** Version 3 -> 4: the rice paddy, the orchard and the festivals arrived. Old saves start them empty. */
+function migrateV3toV4(s: Raw): void {
+  s.estate = newEstate();
+  s.version = 4;
+}
+
 /** Parse a save string. Returns null when it is missing, corrupt or from an unknown version. */
 export function deserialize(text: string | null): GameState | null {
   if (!text) return null;
@@ -85,10 +92,12 @@ export function deserialize(text: string | null): GameState | null {
   const s = data;
   if (s.version === 1) migrateV1toV2(s);
   if (s.version === 2) migrateV2toV3(s);
+  if (s.version === 3) migrateV3toV4(s);
   if (s.version !== SAVE_VERSION) return null;
   if (!isCount(s.day) || s.day < 1 || !isCount(s.minutes) || !isCount(s.money) || !isCount(s.stamina))
     return null;
   if (!isWeather(s.weather) || !isWeather(s.forecast)) return null;
+  if (!validEstate(s.estate)) return null;
   if (s.country === undefined) {
     s.country = newCountry();
     for (const k of ['seeds', 'produce', 'shipping']) {

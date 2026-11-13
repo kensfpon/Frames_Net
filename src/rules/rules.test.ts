@@ -6,7 +6,7 @@ import { dayOfSeason, rollWeather, seasonOf, seasonWarning, yearOf } from './cal
 import { advanceMinutes, endDay, formatClock } from './day';
 import { availableFish, castLine, landFish, rollBiteDelayMs, rollFish } from './fishing';
 import { deserialize, serialize } from './save';
-import { createNewGame } from './state';
+import { SAVE_VERSION, createNewGame } from './state';
 
 const C = FIELD.col;
 const R = FIELD.row;
@@ -361,7 +361,7 @@ describe('save', () => {
     delete v2.fishShipping;
     const s = deserialize(JSON.stringify(v2));
     expect(s).not.toBeNull();
-    expect(s!.version).toBe(3);
+    expect(s!.version).toBe(SAVE_VERSION);
     expect(s!.money).toBe(912);
     expect(s!.tiles[R][C].crop?.growth).toBe(2);
     expect(s!.fish.eel).toBe(0);
@@ -404,7 +404,7 @@ describe('save', () => {
 
     const s = deserialize(JSON.stringify(v1));
     expect(s).not.toBeNull();
-    expect(s!.version).toBe(3);
+    expect(s!.version).toBe(SAVE_VERSION);
     expect(s!.fish.tilapia).toBe(0);
     expect(s!.day).toBe(5);
     expect(s!.money).toBe(480);

@@ -11,6 +11,7 @@ import type { GameState } from '../rules/state';
 import type { FarmAudio } from './audio';
 import { icon, decorate } from './icons';
 import { W, H } from './ground';
+import { estateBag, festivalPanel, notesHtml, orchardPanel, paddyPanel, type EstatePanel } from './estate';
 export const toolNames = ['จอบ', 'บัวรดน้ำ', 'มือเก็บเกี่ยว', 'ถุงเมล็ด', 'เบ็ดตกปลา', 'ขวาน', 'อีเต้อ'];
 export const toolArt = ['hoe', 'can', 'hand', 'seed', 'rod', 'axe', 'pick'];
 export type Panel =
@@ -26,6 +27,7 @@ export type Panel =
   | 'chai'
   | 'travel'
   | 'herd'
+  | EstatePanel
   | Person;
 const $ = (id: string) => document.getElementById(id)!;
 const button = (cmd: string, label: string, quiet = false) =>
@@ -228,6 +230,18 @@ export class Hud {
         title = 'คอกสัตว์ของฉัน';
         body = herdInfo(s);
         break;
+      case 'paddy':
+        title = 'นาข้าว';
+        body = paddyPanel(s);
+        break;
+      case 'orchard':
+        title = 'สวนผลไม้';
+        body = orchardPanel(s);
+        break;
+      case 'festival':
+        title = 'งานประเพณี';
+        body = festivalPanel(s);
+        break;
       case 'cook':
       case 'trader':
       case 'smith':
@@ -349,7 +363,8 @@ export class Hud {
             Object.values(s.shipping)
               .concat(Object.values(s.fishShipping))
               .reduce((a, b) => a + b, s.village.eggsShipping) + ' ชิ้น',
-          );
+          ) +
+          estateBag(s);
         break;
       }
       case 'settings':
@@ -412,6 +427,7 @@ export class Hud {
                 summary.withered +
                 ' ต้น</p>'
               : '') +
+            notesHtml(summary.notes) +
             actions(button('close', 'เริ่มวันใหม่'));
         break;
     }

@@ -1,5 +1,6 @@
 import { type Marker, type Point, sites, walkable } from './ground';
 import { regionNames, type Region } from '../rules/country';
+import { estateFarmSpots, estateVillageSpots } from './estate';
 export const npcs = {
   cook: {
     name: 'ป้าบัว',
@@ -47,7 +48,7 @@ type Layout = { spawn: Point; spots: Record<string, Spot>; paths: number[][]; de
 export const layouts: Record<Region, Layout> = {
   farm: {
     spawn: { x: 740, y: 413 },
-    spots: { ...sites, 'to-village': gate('village', 861, 145) },
+    spots: { ...sites, 'to-village': gate('village', 861, 145), ...estateFarmSpots },
     paths: [],
     description: 'แปลงผัก บ้านพัก และลังส่งของ',
   },
@@ -89,6 +90,7 @@ export const layouts: Record<Region, Layout> = {
       'to-market': gate('market', 813, 338),
       'to-ranch': gate('ranch', 1300, 575),
       'to-farm': gate('farm', 375, 632),
+      ...estateVillageSpots,
     },
     paths: [
       [365, 607, 1310, 717],

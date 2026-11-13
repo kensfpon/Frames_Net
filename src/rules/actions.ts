@@ -11,6 +11,7 @@ import {
 import { FISH_IDS } from '../data/fish';
 import { inBounds, isFarmable, objectAt } from '../data/map';
 import { inSeason, isWet, seasonOf } from './calendar';
+import { shipGoods } from './goods';
 import type { GameState } from './state';
 
 export type Tool = { kind: 'hoe' } | { kind: 'can' } | { kind: 'hand' } | { kind: 'seed'; crop: CropId };
@@ -145,5 +146,6 @@ export function shipAll(state: GameState): number {
   moved += state.village.eggs;
   state.village.eggsShipping += state.village.eggs;
   state.village.eggs = 0;
+  moved += shipGoods(state);
   return moved;
 }

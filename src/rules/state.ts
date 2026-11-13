@@ -13,8 +13,9 @@ import { rollWeather, seasonOf, type Rng } from './calendar';
 
 import { newCountry, type Country } from './country';
 import { newVillage, type Village } from './village';
+import { newEstate, type Estate } from './estate';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface Crop {
   id: CropId;
@@ -35,6 +36,7 @@ export type FishCounts = Record<FishId, number>;
 export interface GameState {
   country: Country;
   village: Village;
+  estate: Estate; // rice paddy, orchard, their harvest and the festival log
   version: number;
   day: number; // counts up forever; season and year are derived from it
   minutes: number; // minutes since midnight
@@ -91,6 +93,7 @@ export function createNewGame(rng: Rng = Math.random): GameState {
   return {
     country: newCountry(),
     village: newVillage(),
+    estate: newEstate(),
     version: SAVE_VERSION,
     day: 1,
     minutes: DAY_START_MINUTES,

@@ -26,6 +26,7 @@ import { isWet, seasonOf } from '../rules/calendar';
 import { advanceMinutes, endDay } from '../rules/day';
 import { castLine, spendCast, landFish, rollBiteDelayMs, rollFish } from '../rules/fishing';
 import { createNewGame, type GameState } from '../rules/state';
+import { chore } from '../rules/estate';
 import { loadGame, saveGame } from '../storage';
 import { Hud, toolArt, type Panel } from '../presentation/hud';
 import { FarmAudio } from '../presentation/audio';
@@ -406,6 +407,10 @@ export class FarmScene extends Phaser.Scene {
       this.open('herd');
       return;
     }
+    if (id === 'paddy' || id === 'orchard' || id === 'festival') {
+      this.open(id);
+      return;
+    }
     if (id === 'herbs' || id === 'timber') {
       this.selected = id === 'timber' ? 5 : 2;
       this.swing = 1;
@@ -477,6 +482,16 @@ export class FarmScene extends Phaser.Scene {
       this.open(panel);
       this.hud.toast(message);
       this.audioFx.play('select');
+      return;
+    }
+    if (cmd.startsWith('chore-')) {
+      const panel = this.hud.panel;
+      if (!panel) return;
+      const result = chore(s, cmd.slice(6));
+      this.hud.invalidate();
+      this.open(panel);
+      this.hud.toast(result.message);
+      this.audioFx.play(result.ok ? 'select' : 'error');
       return;
     }
     if (cmd === 'farm' && this.region !== 'farm') {

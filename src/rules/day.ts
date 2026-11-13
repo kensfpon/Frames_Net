@@ -11,6 +11,8 @@ import {
 import { FISH, FISH_IDS } from '../data/fish';
 import { inSeason, isWet, rollWeather, seasonOf, seasonWarning, type Rng } from './calendar';
 import { matureHerd } from './country';
+import { estateNight } from './estate';
+import { payGoods } from './goods';
 import type { GameState } from './state';
 
 export interface SoldLine {
@@ -29,6 +31,7 @@ export interface DaySummary {
   newSeason: Season | null; // set on the first morning of a season
   withered: number; // plants killed by the season change this morning
   seasonWarning: number; // days until the season changes, counting today; 0 = no warning
+  notes: string[]; // news from the paddy, the orchard and the festival calendar
 }
 
 /** Advance the clock. Returns true when midnight is reached and the player passes out. */
@@ -68,6 +71,10 @@ export function endDay(state: GameState, passedOut: boolean, rng: Rng = Math.ran
     village.eggsShipping = 0;
   }
   if (village.coop && village.fed === state.day) village.nest++;
+  for (const line of payGoods(state)) {
+    sold.push(line);
+    total += line.amount;
+  }
   state.money += total;
 
   const oldSeason = seasonOf(state.day);
@@ -94,6 +101,9 @@ export function endDay(state: GameState, passedOut: boolean, rng: Rng = Math.ran
     }
   }
 
+  // The paddy and the orchard live through the same night, under the new day's weather.
+  const notes = estateNight(state);
+
   state.minutes = DAY_START_MINUTES;
   state.stamina = passedOut ? PASSED_OUT_STAMINA : MAX_STAMINA;
   return {
@@ -106,6 +116,7 @@ export function endDay(state: GameState, passedOut: boolean, rng: Rng = Math.ran
     newSeason,
     withered,
     seasonWarning: seasonWarning(state.day),
+    notes,
   };
 }
 
