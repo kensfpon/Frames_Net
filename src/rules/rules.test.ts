@@ -4,6 +4,7 @@ import { FIELD } from '../data/map';
 import { buySeed, isRipe, seedsForSale, shipAll, useTool } from './actions';
 import { dayOfSeason, rollWeather, seasonOf, seasonWarning, yearOf } from './calendar';
 import { advanceMinutes, endDay, formatClock } from './day';
+import { availableFish, castLine, landFish, rollBiteDelayMs, rollFish } from './fishing';
 import { deserialize, serialize } from './save';
 import { createNewGame } from './state';
 
@@ -265,7 +266,108 @@ describe('seasons and crops', () => {
   });
 });
 
+describe('fishing', () => {
+  const POND = { col: 8, row: 1 };
+
+  it('offers fish by season, hour and weather', () => {
+    const s = newGame(); // hot season, 06:00, sunny
+    expect(availableFish(s)).toEqual(['tilapia', 'barb', 'snakehead']);
+    s.minutes = 12 * 60;
+    expect(availableFish(s)).toEqual(['tilapia', 'barb']);
+    s.minutes = 19 * 60;
+    expect(availableFish(s)).toEqual(['tilapia', 'catfish']);
+    s.minutes = 12 * 60;
+    s.weather = 'rain'; // catfish come out in the rain at any hour
+    expect(availableFish(s)).toEqual(['tilapia', 'barb', 'catfish']);
+    s.day = 15; // rainy season
+    s.minutes = 21 * 60;
+    expect(availableFish(s)).toEqual(['tilapia', 'perch', 'catfish', 'eel']);
+    s.day = 29; // cool season
+    s.weather = 'sunny';
+    s.minutes = 17 * 60;
+    expect(availableFish(s)).toEqual(['tilapia', 'gourami', 'featherback']);
+  });
+
+  it('always has something to catch', () => {
+    const s = newGame();
+    for (const day of [1, 15, 29]) {
+      for (let minutes = 6 * 60; minutes < 24 * 60; minutes += 30) {
+        s.day = day;
+        s.minutes = minutes;
+        expect(availableFish(s).length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('rolls fish by weight', () => {
+    const s = newGame(); // pool: tilapia 40, barb 30, snakehead 12 (total 82)
+    expect(rollFish(s, () => 0)).toBe('tilapia');
+    expect(rollFish(s, () => 0.5)).toBe('barb'); // 41 of 82
+    expect(rollFish(s, () => 0.9)).toBe('snakehead'); // 73.8 of 82
+    expect(rollFish(s, () => 0.999999)).toBe('snakehead');
+  });
+
+  it('waits 3 to 9 seconds for a bite, less in the rain', () => {
+    const s = newGame();
+    expect(rollBiteDelayMs(s, () => 0)).toBe(3000);
+    expect(rollBiteDelayMs(s, () => 0.5)).toBe(6000);
+    s.weather = 'storm';
+    expect(rollBiteDelayMs(s, () => 0.5)).toBe(3600);
+  });
+
+  it('casts only at the pond and always costs stamina', () => {
+    const s = newGame();
+    expect(castLine(s, C, R)).toEqual({ ok: false, reason: 'notWater' });
+    expect(castLine(s, 1, 1)).toEqual({ ok: false, reason: 'notWater' }); // the house
+    expect(castLine(s, -1, 0)).toEqual({ ok: false, reason: 'notWater' });
+    expect(s.stamina).toBe(MAX_STAMINA);
+    expect(castLine(s, POND.col, POND.row)).toEqual({ ok: true });
+    expect(s.stamina).toBe(MAX_STAMINA - 5);
+    s.weather = 'heat';
+    castLine(s, POND.col, POND.row);
+    expect(s.stamina).toBe(MAX_STAMINA - 11);
+    s.stamina = 4;
+    expect(castLine(s, POND.col, POND.row)).toEqual({ ok: false, reason: 'tired' });
+    expect(s.stamina).toBe(4);
+  });
+
+  it('cannot till or plant on the pond', () => {
+    const s = newGame();
+    expect(useTool(s, { kind: 'hoe' }, POND.col, POND.row)).toEqual({ ok: false, reason: 'notField' });
+  });
+
+  it('ships fish with produce and pays for both next morning', () => {
+    const s = newGame();
+    landFish(s, 'snakehead');
+    landFish(s, 'tilapia');
+    landFish(s, 'tilapia');
+    s.produce.morningGlory = 1;
+    expect(shipAll(s)).toBe(4);
+    expect(s.fish.tilapia).toBe(0);
+    const summary = endDay(s, false, SUN);
+    expect(summary.total).toBe(60 + 2 * 12 + 25);
+    expect(summary.sold.map((l) => l.name)).toEqual(['ผักบุ้ง', 'ปลานิล', 'ปลาช่อน']);
+    expect(s.money).toBe(START_MONEY + 109);
+    expect(s.fishShipping.tilapia).toBe(0);
+  });
+});
+
 describe('save', () => {
+  it('upgrades a version 2 save and keeps everything', () => {
+    const v2 = plantAndGrow('longBean', 2) as unknown as Record<string, unknown>;
+    v2.version = 2;
+    v2.money = 912;
+    delete v2.fish;
+    delete v2.fishShipping;
+    const s = deserialize(JSON.stringify(v2));
+    expect(s).not.toBeNull();
+    expect(s!.version).toBe(3);
+    expect(s!.money).toBe(912);
+    expect(s!.tiles[R][C].crop?.growth).toBe(2);
+    expect(s!.fish.eel).toBe(0);
+    expect(s!.fishShipping.eel).toBe(0);
+  });
+
   it('round-trips the whole game', () => {
     const s = plantAndGrow('longBean', 2);
     s.money = 777;
@@ -302,7 +404,8 @@ describe('save', () => {
 
     const s = deserialize(JSON.stringify(v1));
     expect(s).not.toBeNull();
-    expect(s!.version).toBe(2);
+    expect(s!.version).toBe(3);
+    expect(s!.fish.tilapia).toBe(0);
     expect(s!.day).toBe(5);
     expect(s!.money).toBe(480);
     expect(s!.weather).toBe('sunny');

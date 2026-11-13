@@ -7,6 +7,7 @@ import {
   STAMINA_COST,
   type CropId,
 } from '../data/balance';
+import { FISH_IDS } from '../data/fish';
 import { inBounds, isFarmable, objectAt } from '../data/map';
 import { inSeason, isWet, seasonOf } from './calendar';
 import type { GameState } from './state';
@@ -28,7 +29,8 @@ export type FailReason =
   | 'shopStorm'
   | 'notSold'
   | 'noMoney'
-  | 'nothingToShip';
+  | 'nothingToShip'
+  | 'notWater';
 
 export type ActionResult = { ok: true } | { ok: false; reason: FailReason };
 
@@ -122,13 +124,18 @@ export function buySeed(state: GameState, crop: CropId): ActionResult {
   return OK;
 }
 
-/** Move all carried produce into the shipping crate. Returns how many items were moved. */
+/** Move all carried produce and fish into the shipping crate. Returns how many items were moved. */
 export function shipAll(state: GameState): number {
   let moved = 0;
   for (const id of CROP_IDS) {
     moved += state.produce[id];
     state.shipping[id] += state.produce[id];
     state.produce[id] = 0;
+  }
+  for (const id of FISH_IDS) {
+    moved += state.fish[id];
+    state.fishShipping[id] += state.fish[id];
+    state.fish[id] = 0;
   }
   return moved;
 }

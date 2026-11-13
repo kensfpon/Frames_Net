@@ -24,10 +24,30 @@ import {
 } from '../rules/actions';
 import { dayOfSeason, inSeason, isWet, seasonOf, yearOf } from '../rules/calendar';
 import { advanceMinutes, endDay, formatClock, type DaySummary } from '../rules/day';
+import { FISH, FISH_IDS, type FishId } from '../data/fish';
+import { castLine, landFish, rollBiteDelayMs, rollFish } from '../rules/fishing';
 import { createNewGame, type GameState } from '../rules/state';
 import { loadGame, saveGame } from '../storage';
 
-type Mode = 'play' | 'shop' | 'summary' | 'confirmSleep' | 'confirmNew';
+type Mode = 'play' | 'shop' | 'summary' | 'confirmSleep' | 'confirmNew' | 'help';
+
+const ROD_SLOT = 4;
+
+/** A cast in progress: waiting for a bite, then a short window to hook the fish. */
+type Fishing = { phase: 'wait'; ms: number } | { phase: 'bite'; ms: number; fish: FishId };
+
+const HELP_TEXT = [
+  'วิธีเล่น',
+  '',
+  'WASD / ลูกศร = เดิน     Space = ใช้ของกับช่องตรงหน้า',
+  '1 จอบ   2 บัวรดน้ำ   3 มือเก็บ   4 ถุงเมล็ด   5 เบ็ด',
+  'Q = เปลี่ยนชนิดเมล็ด     E = เปิดบ้าน ลัง แผงขาย',
+  '',
+  'ตกปลา: หันหน้าเข้าหนองน้ำ กด Space เหวี่ยงเบ็ด',
+  'พอ ! ขึ้นให้กด Space ทันที     Esc = เก็บเบ็ด',
+  '',
+  'F2 = เริ่มเกมใหม่     H / Esc = ปิดหน้านี้',
+].join('\n');
 
 const FONT = 'Tahoma, "Leelawadee UI", sans-serif';
 
@@ -58,6 +78,7 @@ const FAIL_TEXT: Record<FailReason, string> = {
   notRipe: 'ยังไม่โตพอ',
   shopClosed: 'แผงขายเปิด 08:00–17:00',
   shopStorm: 'พายุเข้า แผงขายปิดทั้งวัน',
+  notWater: 'ต้องหันหน้าเข้าหนองน้ำก่อน',
   notSold: 'ฤดูนี้ไม่มีเมล็ดนี้ขาย',
   noMoney: 'เงินไม่พอ',
   nothingToShip: 'ไม่มีผลผลิตให้ส่ง',
@@ -79,6 +100,9 @@ export class FarmScene extends Phaser.Scene {
   /** Which seed the seed bag is set to. May point at a seed the player has run out of. */
   seedChoice: CropId = 'morningGlory';
 
+  fishing: Fishing | null = null;
+  private bobber!: Phaser.GameObjects.Arc;
+  private biteMark!: Phaser.GameObjects.Text;
   private rainDim!: Phaser.GameObjects.Rectangle;
   private rainGfx!: Phaser.GameObjects.Graphics;
   private tileRects: Phaser.GameObjects.Rectangle[][] = [];
@@ -165,6 +189,20 @@ export class FarmScene extends Phaser.Scene {
 
   private buildPlayer(): void {
     this.player = this.add.rectangle(0, 0, 28, 36, 0x2f6fd0).setStrokeStyle(2, 0x12305e).setDepth(6);
+    this.bobber = this.add.circle(0, 0, 6, 0xff4b3a).setStrokeStyle(2, 0xffffff).setDepth(7).setVisible(false);
+    this.biteMark = this.add
+      .text(0, 0, '', {
+        fontFamily: FONT,
+        fontSize: '26px',
+        fontStyle: 'bold',
+        color: '#fff36b',
+        stroke: '#000000',
+        strokeThickness: 5,
+        padding: { top: 4 },
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(8)
+      .setVisible(false);
   }
 
   private buildHud(): void {
@@ -179,7 +217,7 @@ export class FarmScene extends Phaser.Scene {
     this.staminaFill = this.add.rectangle(GAME_WIDTH - 208, 11, 192, 12, 0x6fdc5a).setOrigin(0).setDepth(22);
 
     this.add
-      .text(GAME_WIDTH - 8, 38, 'WASD เดิน · Space ใช้ของกับช่องตรงหน้า · E เปิด/คุย · 1–4 เลือกของ · Q เปลี่ยนเมล็ด · F2 เริ่มใหม่', {
+      .text(GAME_WIDTH - 8, 38, 'H = วิธีเล่น', {
         fontFamily: FONT,
         fontSize: '13px',
         color: '#ffffff',
@@ -202,6 +240,7 @@ export class FarmScene extends Phaser.Scene {
         },
         tool: () => ({ kind: 'seed', crop: this.seedChoice }),
       },
+      { label: () => 'เบ็ด', tool: () => null }, // ROD_SLOT: handled by startFishing
     ];
     const slotW = GAME_WIDTH / this.slots.length;
     this.slots.forEach((_slot, i) => {
@@ -255,7 +294,7 @@ export class FarmScene extends Phaser.Scene {
     const codes: Record<string, number> = {
       up: K.UP, down: K.DOWN, left: K.LEFT, right: K.RIGHT,
       w: K.W, a: K.A, s: K.S, d: K.D,
-      space: K.SPACE, e: K.E, q: K.Q, esc: K.ESC, y: K.Y, f2: K.F2,
+      space: K.SPACE, e: K.E, q: K.Q, h: K.H, esc: K.ESC, y: K.Y, f2: K.F2,
       n1: K.ONE, n2: K.TWO, n3: K.THREE, n4: K.FOUR, n5: K.FIVE, n6: K.SIX,
     };
     this.keys = {};
@@ -320,7 +359,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private updatePlay(deltaMs: number): void {
-    this.movePlayer(deltaMs);
+    if (!this.fishing) this.movePlayer(deltaMs);
 
     this.tickMs += deltaMs;
     while (this.tickMs >= MS_PER_TICK) {
@@ -331,6 +370,11 @@ export class FarmScene extends Phaser.Scene {
       }
     }
 
+    if (this.fishing) {
+      this.updateFishing(deltaMs);
+      return;
+    }
+
     const n = this.numberPressed();
     if (n >= 1 && n <= this.slots.length) this.selected = n - 1;
     if (this.pressed('q')) this.cycleSeed();
@@ -338,7 +382,11 @@ export class FarmScene extends Phaser.Scene {
     const target = this.targetTile();
     this.cursor.setPosition(target.col * TILE_SIZE, target.row * TILE_SIZE);
 
-    if (this.pressed('space')) {
+    if (this.pressed('h')) this.open('help');
+
+    if (this.selected === ROD_SLOT) {
+      if (this.pressed('space')) this.startFishing(target.col, target.row);
+    } else if (this.pressed('space')) {
       const tool = this.slots[this.selected].tool();
       const result = tool ? useTool(this.state, tool, target.col, target.row) : null;
       if (result?.ok) {
@@ -349,6 +397,65 @@ export class FarmScene extends Phaser.Scene {
 
     if (this.pressed('e')) this.interact(target.col, target.row);
     if (this.pressed('f2')) this.open('confirmNew');
+  }
+
+  // ---------- fishing ----------
+
+  private startFishing(col: number, row: number): void {
+    const result = castLine(this.state, col, row);
+    if (!result.ok) {
+      this.toast(FAIL_TEXT[result.reason]);
+      return;
+    }
+    this.fishing = { phase: 'wait', ms: rollBiteDelayMs(this.state, Math.random) };
+    this.bobber
+      .setPosition((col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE)
+      .setAlpha(1)
+      .setVisible(true);
+    this.biteMark
+      .setPosition(this.player.x, this.player.y - this.player.height / 2 - 2)
+      .setText('...')
+      .setVisible(true);
+  }
+
+  private stopFishing(message?: string): void {
+    this.fishing = null;
+    this.bobber.setVisible(false);
+    this.biteMark.setVisible(false);
+    if (message) this.toast(message);
+  }
+
+  private updateFishing(deltaMs: number): void {
+    const f = this.fishing!;
+    if (this.pressed('esc')) {
+      this.stopFishing('เก็บเบ็ดแล้ว');
+      return;
+    }
+    const pulled = this.pressed('space');
+
+    if (f.phase === 'wait') {
+      if (pulled) {
+        this.stopFishing('ดึงเร็วไป ได้เบ็ดเปล่า');
+        return;
+      }
+      f.ms -= deltaMs;
+      if (f.ms <= 0) {
+        // The fish is chosen at the moment of the bite, so the hour that counts is now.
+        const fish = rollFish(this.state, Math.random);
+        this.fishing = { phase: 'bite', ms: FISH[fish].windowMs, fish };
+        this.bobber.setAlpha(0.35);
+        this.biteMark.setText('!');
+      }
+      return;
+    }
+
+    if (pulled) {
+      landFish(this.state, f.fish);
+      this.stopFishing(`ได้${FISH[f.fish].name}!  ขายได้ ฿${FISH[f.fish].price}`);
+      return;
+    }
+    f.ms -= deltaMs;
+    if (f.ms <= 0) this.stopFishing('ช้าไป ปลาหลุดแล้ว');
   }
 
   private interact(col: number, row: number): void {
@@ -382,6 +489,9 @@ export class FarmScene extends Phaser.Scene {
       case 'summary':
         if (this.pressed('e') || this.pressed('space')) this.close();
         break;
+      case 'help':
+        if (this.pressed('h') || this.pressed('esc') || this.pressed('e')) this.close();
+        break;
       case 'confirmSleep':
         if (this.pressed('e')) this.finishDay(false);
         else if (this.pressed('esc')) this.close();
@@ -403,6 +513,7 @@ export class FarmScene extends Phaser.Scene {
   // ---------- day cycle ----------
 
   private finishDay(passedOut: boolean): void {
+    this.stopFishing();
     this.lastSummary = endDay(this.state, passedOut);
     const saved = saveGame(this.state);
     this.tickMs = 0;
@@ -419,6 +530,7 @@ export class FarmScene extends Phaser.Scene {
     const text =
       mode === 'shop' ? this.shopText()
       : mode === 'summary' ? this.summaryText()
+      : mode === 'help' ? HELP_TEXT
       : mode === 'confirmSleep' ? 'เข้านอนเลยไหม?\n\nE = นอน     Esc = ยังก่อน'
       : 'เริ่มเกมใหม่?\nเซฟเดิมจะหายถาวร\n\nY = เริ่มใหม่     Esc = ยกเลิก';
     this.overlayText.setText(text);
@@ -453,7 +565,7 @@ export class FarmScene extends Phaser.Scene {
 
   private summaryText(): string {
     const s = this.lastSummary!;
-    const sold = s.sold.map((l) => `${CROPS[l.crop].name} x${l.count}   ฿${l.amount}`);
+    const sold = s.sold.map((l) => `${l.name} x${l.count}   ฿${l.amount}`);
     const notes: string[] = [];
     if (s.newSeason) notes.push(`เข้าสู่${SEASON_NAMES[s.newSeason]}แล้ว แผงขายเปลี่ยนเมล็ด`);
     if (s.withered > 0) notes.push(`พืช ${s.withered} ต้นทนฤดูใหม่ไม่ได้ เหี่ยวไปแล้ว`);
@@ -586,6 +698,7 @@ export class FarmScene extends Phaser.Scene {
   }
 
   private produceCount(): number {
-    return CROP_IDS.reduce((sum, id) => sum + this.state.produce[id], 0);
+    const crops = CROP_IDS.reduce((sum, id) => sum + this.state.produce[id], 0);
+    return FISH_IDS.reduce((sum, id) => sum + this.state.fish[id], crops);
   }
 }

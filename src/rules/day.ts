@@ -5,15 +5,15 @@ import {
   DAY_START_MINUTES,
   MAX_STAMINA,
   PASSED_OUT_STAMINA,
-  type CropId,
   type Season,
   type Weather,
 } from '../data/balance';
+import { FISH, FISH_IDS } from '../data/fish';
 import { inSeason, isWet, rollWeather, seasonOf, seasonWarning, type Rng } from './calendar';
 import type { GameState } from './state';
 
 export interface SoldLine {
-  crop: CropId;
+  name: string;
   count: number;
   amount: number;
 }
@@ -44,10 +44,19 @@ export function endDay(state: GameState, passedOut: boolean, rng: Rng = Math.ran
     const count = state.shipping[id];
     if (count > 0) {
       const amount = count * CROPS[id].sellPrice;
-      sold.push({ crop: id, count, amount });
+      sold.push({ name: CROPS[id].name, count, amount });
       total += amount;
     }
     state.shipping[id] = 0;
+  }
+  for (const id of FISH_IDS) {
+    const count = state.fishShipping[id];
+    if (count > 0) {
+      const amount = count * FISH[id].price;
+      sold.push({ name: FISH[id].name, count, amount });
+      total += amount;
+    }
+    state.fishShipping[id] = 0;
   }
   state.money += total;
 

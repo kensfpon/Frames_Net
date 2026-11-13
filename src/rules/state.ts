@@ -1,8 +1,9 @@
 import { GRID_COLS, GRID_ROWS } from '../config';
 import { CROP_IDS, DAY_START_MINUTES, MAX_STAMINA, START_MONEY, START_SEEDS, type CropId, type Weather } from '../data/balance';
+import { FISH_IDS, type FishId } from '../data/fish';
 import { rollWeather, seasonOf, type Rng } from './calendar';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface Crop {
   id: CropId;
@@ -17,6 +18,7 @@ export interface Tile {
 }
 
 export type Counts = Record<CropId, number>;
+export type FishCounts = Record<FishId, number>;
 
 /** The whole game as plain JSON-serialisable data. */
 export interface GameState {
@@ -31,11 +33,19 @@ export interface GameState {
   seeds: Counts;
   produce: Counts;
   shipping: Counts; // produce in the shipping crate, paid next morning
+  fish: FishCounts; // fish carried in the bag
+  fishShipping: FishCounts; // fish in the shipping crate
 }
 
 export function emptyCounts(): Counts {
   const c = {} as Counts;
   for (const id of CROP_IDS) c[id] = 0;
+  return c;
+}
+
+export function emptyFishCounts(): FishCounts {
+  const c = {} as FishCounts;
+  for (const id of FISH_IDS) c[id] = 0;
   return c;
 }
 
@@ -58,5 +68,7 @@ export function createNewGame(rng: Rng = Math.random): GameState {
     seeds: { ...emptyCounts(), ...START_SEEDS },
     produce: emptyCounts(),
     shipping: emptyCounts(),
+    fish: emptyFishCounts(),
+    fishShipping: emptyFishCounts(),
   };
 }

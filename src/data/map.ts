@@ -1,6 +1,6 @@
 import { GRID_COLS, GRID_ROWS } from '../config';
 
-export type ObjectId = 'house' | 'crate' | 'stall';
+export type ObjectId = 'house' | 'crate' | 'stall' | 'pond';
 
 export interface MapObject {
   id: ObjectId;
@@ -15,6 +15,7 @@ export interface MapObject {
 export const MAP_OBJECTS: MapObject[] = [
   { id: 'house', label: 'บ้าน', col: 1, row: 1, w: 3, h: 2, color: 0xb5651d },
   { id: 'crate', label: 'ลังส่งของ', col: 5, row: 2, w: 1, h: 1, color: 0xd9a441 },
+  { id: 'pond', label: 'หนองน้ำ', col: 8, row: 1, w: 5, h: 2, color: 0x3b7fc4 },
   { id: 'stall', label: 'แผงขายเมล็ด', col: 15, row: 1, w: 3, h: 2, color: 0x8e5bb5 },
 ];
 

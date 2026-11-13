@@ -66,7 +66,7 @@ export const SHOP_CLOSE_MINUTES = 17 * 60;
 
 export const MAX_STAMINA = 100;
 export const PASSED_OUT_STAMINA = 50;
-export const STAMINA_COST = { hoe: 4, water: 2, plant: 1, harvest: 1 } as const;
+export const STAMINA_COST = { hoe: 4, water: 2, plant: 1, harvest: 1, fish: 5 } as const;
 
 export const START_MONEY = 200;
 export const START_SEEDS: Partial<Record<CropId, number>> = { morningGlory: 5 };

@@ -1,5 +1,6 @@
 import { GRID_COLS, GRID_ROWS } from '../config';
 import { CROPS, CROP_IDS, WEATHER_NAMES } from '../data/balance';
+import { FISH_IDS } from '../data/fish';
 import { SAVE_VERSION, type Counts, type GameState, type Tile } from './state';
 
 export function serialize(state: GameState): string {
@@ -14,6 +15,10 @@ const isWeather = (w: unknown): boolean => typeof w === 'string' && w in WEATHER
 
 function validCounts(c: unknown): c is Counts {
   return isObject(c) && CROP_IDS.every((id) => isCount(c[id]));
+}
+
+function validFishCounts(c: unknown): boolean {
+  return isObject(c) && FISH_IDS.every((id) => isCount(c[id]));
 }
 
 function validTile(t: unknown): t is Tile {
@@ -49,6 +54,14 @@ function migrateV1toV2(s: Raw): void {
   s.version = 2;
 }
 
+/** Version 2 -> 3: fishing arrived. Old saves start with no fish. */
+function migrateV2toV3(s: Raw): void {
+  const none = (): Record<string, number> => Object.fromEntries(FISH_IDS.map((id) => [id, 0]));
+  s.fish = none();
+  s.fishShipping = none();
+  s.version = 3;
+}
+
 /** Parse a save string. Returns null when it is missing, corrupt or from an unknown version. */
 export function deserialize(text: string | null): GameState | null {
   if (!text) return null;
@@ -61,10 +74,12 @@ export function deserialize(text: string | null): GameState | null {
   if (!isObject(data)) return null;
   const s = data;
   if (s.version === 1) migrateV1toV2(s);
+  if (s.version === 2) migrateV2toV3(s);
   if (s.version !== SAVE_VERSION) return null;
   if (!isCount(s.day) || s.day < 1 || !isCount(s.minutes) || !isCount(s.money) || !isCount(s.stamina)) return null;
   if (!isWeather(s.weather) || !isWeather(s.forecast)) return null;
   if (!validCounts(s.seeds) || !validCounts(s.produce) || !validCounts(s.shipping)) return null;
+  if (!validFishCounts(s.fish) || !validFishCounts(s.fishShipping)) return null;
   if (!Array.isArray(s.tiles) || s.tiles.length !== GRID_ROWS) return null;
   for (const row of s.tiles) {
     if (!Array.isArray(row) || row.length !== GRID_COLS || !row.every(validTile)) return null;
