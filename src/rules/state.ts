@@ -1,7 +1,18 @@
 import { GRID_COLS, GRID_ROWS } from '../config';
-import { CROP_IDS, DAY_START_MINUTES, MAX_STAMINA, START_MONEY, START_SEEDS, type CropId, type Weather } from '../data/balance';
+import {
+  CROP_IDS,
+  DAY_START_MINUTES,
+  MAX_STAMINA,
+  START_MONEY,
+  START_SEEDS,
+  type CropId,
+  type Weather,
+} from '../data/balance';
 import { FISH_IDS, type FishId } from '../data/fish';
 import { rollWeather, seasonOf, type Rng } from './calendar';
+
+import { newCountry, type Country } from './country';
+import { newVillage, type Village } from './village';
 
 export const SAVE_VERSION = 3;
 
@@ -22,6 +33,8 @@ export type FishCounts = Record<FishId, number>;
 
 /** The whole game as plain JSON-serialisable data. */
 export interface GameState {
+  country: Country;
+  village: Village;
   version: number;
   day: number; // counts up forever; season and year are derived from it
   minutes: number; // minutes since midnight
@@ -56,7 +69,28 @@ export function createNewGame(rng: Rng = Math.random): GameState {
     for (let col = 0; col < GRID_COLS; col++) line.push({ kind: 'grass', watered: false, crop: null });
     tiles.push(line);
   }
+  // The player inherits two small planted beds. The center is open for their first planting.
+  for (const col of [3, 4, 5]) {
+    for (const row of [7, 8, 9]) {
+      tiles[row][col] = {
+        kind: 'tilled',
+        watered: false,
+        crop: { id: 'morningGlory', growth: 3, withered: false },
+      };
+    }
+  }
+  for (const col of [14, 15, 16]) {
+    for (const row of [5, 6]) {
+      tiles[row][col] = {
+        kind: 'tilled',
+        watered: false,
+        crop: { id: 'longBean', growth: 4, withered: false },
+      };
+    }
+  }
   return {
+    country: newCountry(),
+    village: newVillage(),
     version: SAVE_VERSION,
     day: 1,
     minutes: DAY_START_MINUTES,

@@ -1,20 +1,18 @@
 import Phaser from 'phaser';
 import { FarmScene } from './scenes/FarmScene';
-import { GAME_HEIGHT, GAME_WIDTH } from './config';
+import { W, H } from './presentation/ground';
 
 const game = new Phaser.Game({
-  type: Phaser.AUTO,
+  type: Phaser.CANVAS,
   parent: 'game',
-  width: GAME_WIDTH,
-  height: GAME_HEIGHT,
-  backgroundColor: '#5a9e4b',
+  width: W,
+  height: H,
+  backgroundColor: '#334a32',
   pixelArt: true,
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-  },
+  roundPixels: true,
+  antialias: false,
+  audio: { noAudio: true },
+  scale: { mode: Phaser.Scale.NONE },
   scene: [FarmScene],
 });
-
-// Exposed for debugging in the browser console.
-(window as unknown as { game: Phaser.Game }).game = game;
+Object.assign(window, { game });

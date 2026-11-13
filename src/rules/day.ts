@@ -10,6 +10,7 @@ import {
 } from '../data/balance';
 import { FISH, FISH_IDS } from '../data/fish';
 import { inSeason, isWet, rollWeather, seasonOf, seasonWarning, type Rng } from './calendar';
+import { matureHerd } from './country';
 import type { GameState } from './state';
 
 export interface SoldLine {
@@ -58,6 +59,15 @@ export function endDay(state: GameState, passedOut: boolean, rng: Rng = Math.ran
     }
     state.fishShipping[id] = 0;
   }
+  matureHerd(state);
+  const village = state.village;
+  if (village.eggsShipping) {
+    const amount = village.eggsShipping * 35;
+    sold.push({ name: 'ไข่ไก่', count: village.eggsShipping, amount });
+    total += amount;
+    village.eggsShipping = 0;
+  }
+  if (village.coop && village.fed === state.day) village.nest++;
   state.money += total;
 
   const oldSeason = seasonOf(state.day);

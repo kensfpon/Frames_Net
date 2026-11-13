@@ -1,704 +1,897 @@
-import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, GRID_COLS, GRID_ROWS, PLAYER_SPEED, TILE_SIZE } from '../config';
+import { layouts, npcs, regionArt, canWalk, type Person } from '../presentation/regions';
+import { forage, trade, regionNames, type Region } from '../rules/country';
 import {
-  CROPS,
-  CROP_IDS,
-  MAX_STAMINA,
-  MINUTES_PER_TICK,
-  MS_PER_TICK,
-  SEASON_NAMES,
-  WEATHER_NAMES,
-  type CropId,
-  type Season,
-} from '../data/balance';
-import { MAP_OBJECTS, SPAWN_TILE, inBounds, isFarmable, objectAt } from '../data/map';
+  greet,
+  gather,
+  giveBerry,
+  completeOrder,
+  buildCoop,
+  careForHen,
+  type Villager,
+} from '../rules/village';
+import Phaser from 'phaser';
+import { CROPS, CROP_IDS, MS_PER_TICK, MINUTES_PER_TICK, type CropId } from '../data/balance';
+import { FIELD, MAP_OBJECTS } from '../data/map';
+import { FISH, type FishId } from '../data/fish';
 import {
   buySeed,
-  isRipe,
-  seedsForSale,
   shipAll,
-  shopClosedReason,
   useTool,
+  shopClosedReason,
+  seedsForSale,
   type FailReason,
   type Tool,
 } from '../rules/actions';
-import { dayOfSeason, inSeason, isWet, seasonOf, yearOf } from '../rules/calendar';
-import { advanceMinutes, endDay, formatClock, type DaySummary } from '../rules/day';
-import { FISH, FISH_IDS, type FishId } from '../data/fish';
-import { castLine, landFish, rollBiteDelayMs, rollFish } from '../rules/fishing';
+import { isWet, seasonOf } from '../rules/calendar';
+import { advanceMinutes, endDay } from '../rules/day';
+import { castLine, spendCast, landFish, rollBiteDelayMs, rollFish } from '../rules/fishing';
 import { createNewGame, type GameState } from '../rules/state';
 import { loadGame, saveGame } from '../storage';
+import { Hud, toolArt, type Panel } from '../presentation/hud';
+import { FarmAudio } from '../presentation/audio';
+import { W, H, cellAt, center, corner, route, type Cell, type Point } from '../presentation/ground';
 
-type Mode = 'play' | 'shop' | 'summary' | 'confirmSleep' | 'confirmNew' | 'help';
-
-const ROD_SLOT = 4;
-
-/** A cast in progress: waiting for a bite, then a short window to hook the fish. */
-type Fishing = { phase: 'wait'; ms: number } | { phase: 'bite'; ms: number; fish: FishId };
-
-const HELP_TEXT = [
-  'วิธีเล่น',
-  '',
-  'WASD / ลูกศร = เดิน     Space = ใช้ของกับช่องตรงหน้า',
-  '1 จอบ   2 บัวรดน้ำ   3 มือเก็บ   4 ถุงเมล็ด   5 เบ็ด',
-  'Q = เปลี่ยนชนิดเมล็ด     E = เปิดบ้าน ลัง แผงขาย',
-  '',
-  'ตกปลา: หันหน้าเข้าหนองน้ำ กด Space เหวี่ยงเบ็ด',
-  'พอ ! ขึ้นให้กด Space ทันที     Esc = เก็บเบ็ด',
-  '',
-  'F2 = เริ่มเกมใหม่     H / Esc = ปิดหน้านี้',
-].join('\n');
-
-const FONT = 'Tahoma, "Leelawadee UI", sans-serif';
-
-const COLORS = {
-  tilled: 0x9a6b3f,
-  watered: 0x5e3d22,
-  sprout: 0x7fd47f,
-  withered: 0x6b5a3a,
-};
-
-/** Grass colours per season: dry and yellow, lush, then pale. */
-const GRASS: Record<Season, { yard: number; field: number }> = {
-  hot: { yard: 0x9bb352, field: 0x8aa646 },
-  rainy: { yard: 0x58a552, field: 0x479646 },
-  cool: { yard: 0x8fb88a, field: 0x7ea97a },
-};
-
-const FAIL_TEXT: Record<FailReason, string> = {
-  tired: 'เหนื่อยเกินไป ไปนอนพักก่อน',
-  notField: 'ตรงนี้ปลูกไม่ได้',
-  notGrass: 'พรวนไปแล้ว',
-  notTilled: 'ต้องพรวนดินก่อน',
-  alreadyWatered: 'รดน้ำไปแล้ววันนี้',
-  occupied: 'มีต้นอยู่แล้ว',
-  noSeed: 'ไม่มีเมล็ดในถุง',
-  outOfSeason: 'เมล็ดนี้ปลูกฤดูนี้ไม่ได้',
-  nothingToHarvest: 'ไม่มีอะไรให้เก็บ',
-  notRipe: 'ยังไม่โตพอ',
-  shopClosed: 'แผงขายเปิด 08:00–17:00',
-  shopStorm: 'พายุเข้า แผงขายปิดทั้งวัน',
-  notWater: 'ต้องหันหน้าเข้าหนองน้ำก่อน',
+const fail: Record<FailReason, string> = {
+  tired: 'พลังงานหมดแล้ว กลับบ้านเพื่อพักผ่อน',
+  notField: 'เลือกช่องดินกลางแปลง',
+  notGrass: 'พรวนดินช่องนี้แล้ว',
+  notTilled: 'ใช้จอบพรวนดินก่อน',
+  alreadyWatered: 'ช่องนี้รดน้ำแล้ววันนี้',
+  occupied: 'ช่องนี้มีต้นไม้อยู่แล้ว',
+  noSeed: 'ถุงเมล็ดว่าง ซื้อได้ที่ร้านเมล็ดพันธุ์',
+  outOfSeason: 'เมล็ดนี้ปลูกในฤดูนี้ไม่ได้',
+  nothingToHarvest: 'ยังไม่มีพืชให้เก็บ',
+  notRipe: 'ผักยังโตไม่เต็มที่',
+  shopClosed: 'ร้านเปิด 08:00–17:00 น.',
+  shopStorm: 'ร้านปิดวันนี้เนื่องจากพายุ',
+  notWater: 'ไปที่บ่อตกปลาเพื่อเหวี่ยงเบ็ด',
   notSold: 'ฤดูนี้ไม่มีเมล็ดนี้ขาย',
-  noMoney: 'เงินไม่พอ',
-  nothingToShip: 'ไม่มีผลผลิตให้ส่ง',
+  noMoney: 'เงินไม่พอซื้อเมล็ด',
+  nothingToShip: 'กระเป๋ายังไม่มีผลผลิตหรือปลา',
 };
-
-interface Slot {
-  label: () => string;
-  tool: () => Tool | null; // null when the slot has nothing usable (an empty seed bag)
-}
-
-/**
- * Draws the game state and turns key presses into rule actions.
- * All rules live in src/rules; this scene never decides outcomes itself.
- */
+const SPAWN = { x: 740, y: 413 };
+const same = (a: Cell | null, b: Cell | null) => a?.col === b?.col && a?.row === b?.row;
+type Cast = { ms: number; fish?: FishId };
 export class FarmScene extends Phaser.Scene {
   state!: GameState;
-  mode: Mode = 'play';
+  private audioFx = new FarmAudio();
+  private hud!: Hud;
   selected = 0;
-  /** Which seed the seed bag is set to. May point at a seed the player has run out of. */
   seedChoice: CropId = 'morningGlory';
-
-  fishing: Fishing | null = null;
-  private bobber!: Phaser.GameObjects.Arc;
-  private biteMark!: Phaser.GameObjects.Text;
-  private rainDim!: Phaser.GameObjects.Rectangle;
-  private rainGfx!: Phaser.GameObjects.Graphics;
-  private tileRects: Phaser.GameObjects.Rectangle[][] = [];
-  private cropMarks: Phaser.GameObjects.Arc[][] = [];
-  private player!: Phaser.GameObjects.Rectangle;
-  private cursor!: Phaser.GameObjects.Rectangle;
-  private facing = { x: 0, y: 1 };
-  private tickMs = 0;
-
-  private slots: Slot[] = [];
-  private slotTexts: Phaser.GameObjects.Text[] = [];
-  private statusText!: Phaser.GameObjects.Text;
-  private staminaFill!: Phaser.GameObjects.Rectangle;
-  private toastText!: Phaser.GameObjects.Text;
-  private toastTimer?: Phaser.Time.TimerEvent;
-  private overlay!: Phaser.GameObjects.Container;
-  private overlayText!: Phaser.GameObjects.Text;
-  private lastSummary: DaySummary | null = null;
-
-  private keys!: Record<string, Phaser.Input.Keyboard.Key>;
-
+  private actor!: Phaser.GameObjects.Image;
+  private backdrop!: Phaser.GameObjects.Image;
+  private people!: Phaser.GameObjects.Group;
+  private herdSprites!: Phaser.GameObjects.Group;
+  private herdSignature = '';
+  private get region() {
+    return this.state.country.region;
+  }
+  private get spots() {
+    return layouts[this.region].spots;
+  }
+  private coop!: Phaser.GameObjects.Image;
+  private chicken!: Phaser.GameObjects.Image;
+  private shadow!: Phaser.GameObjects.Ellipse;
+  private toolProp!: Phaser.GameObjects.Image;
+  private cursor!: Phaser.GameObjects.Graphics;
+  private weather!: Phaser.GameObjects.Graphics;
+  private terrain!: Phaser.GameObjects.Layer;
+  private castInfo!: Phaser.GameObjects.Text;
+  private waterLine!: Phaser.GameObjects.Graphics;
+  private pos: Point = { ...SPAWN };
+  private face: Point = { x: 0, y: 1 };
+  private aim: Cell | null = null;
+  private lastOutline: Cell | null = null;
+  private path: Point[] = [];
+  private arrived?: () => void;
+  private cast: Cast | null = null;
+  private keys = new Set<string>();
+  private tick = 0;
+  private steps = 0;
+  private lastStep = 0;
+  private birdTime = 0;
+  private swing = 0;
+  private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   constructor() {
     super('farm');
   }
-
-  create(): void {
-    this.buildMap();
-    this.buildPlayer();
-    this.buildHud();
-    this.buildOverlay();
-    this.buildKeys();
-
+  preload() {
+    for (const region of Object.keys(regionNames) as Region[])
+      if (region !== 'farm') this.load.image(region, regionArt(region));
+    for (const key of [...Object.keys(npcs), 'duck', 'cow'])
+      this.load.image(key, '/art/' + key + '.webp');
+    this.load.image('valley', '/art/valley.webp');
+    this.load.spritesheet('farmer', '/art/farmer.webp', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('plants', '/art/plants.webp', { frameWidth: 48, frameHeight: 48 });
+    for (const name of ['mali', 'chai', 'hen', 'coop']) this.load.image(name, '/art/' + name + '.webp');
+    toolArt.forEach((id) => this.load.image(id, '/art/' + id + '.webp'));
+  }
+  create() {
     const loaded = loadGame();
     this.state = loaded.status === 'ok' ? loaded.state : createNewGame();
-    this.pickAvailableSeed();
-    this.resetPlayer();
-    this.refreshAllTiles();
-    if (loaded.status === 'corrupt') this.toast('ไฟล์เซฟอ่านไม่ได้ เริ่มเกมใหม่', 5000);
-  }
-
-  // ---------- construction ----------
-
-  private buildMap(): void {
-    for (let row = 0; row < GRID_ROWS; row++) {
-      this.tileRects.push([]);
-      this.cropMarks.push([]);
-      for (let col = 0; col < GRID_COLS; col++) {
-        const rect = this.add
-          .rectangle(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE, GRASS.hot.yard)
-          .setOrigin(0)
-          .setStrokeStyle(1, 0x000000, 0.08);
-        const mark = this.add
-          .circle(col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE + TILE_SIZE / 2, 4, COLORS.sprout)
-          .setVisible(false);
-        this.tileRects[row].push(rect);
-        this.cropMarks[row].push(mark);
-      }
-    }
-
-    for (const o of MAP_OBJECTS) {
-      this.add
-        .rectangle(o.col * TILE_SIZE, o.row * TILE_SIZE, o.w * TILE_SIZE, o.h * TILE_SIZE, o.color)
-        .setOrigin(0)
-        .setStrokeStyle(2, 0x000000, 0.4);
-      this.add
-        .text((o.col + o.w / 2) * TILE_SIZE, (o.row + o.h / 2) * TILE_SIZE, o.label, {
-          fontFamily: FONT,
-          fontSize: o.w > 1 ? '16px' : '11px',
-          color: '#ffffff',
-          padding: { top: 4 },
-        })
-        .setOrigin(0.5);
-    }
-
-    this.cursor = this.add
-      .rectangle(0, 0, TILE_SIZE, TILE_SIZE)
-      .setOrigin(0)
-      .setStrokeStyle(2, 0xffffff, 0.85)
-      .setDepth(5);
-
-    this.rainDim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x16233f, 0.22).setOrigin(0).setDepth(14);
-    this.rainGfx = this.add.graphics().setDepth(15);
-  }
-
-  private buildPlayer(): void {
-    this.player = this.add.rectangle(0, 0, 28, 36, 0x2f6fd0).setStrokeStyle(2, 0x12305e).setDepth(6);
-    this.bobber = this.add.circle(0, 0, 6, 0xff4b3a).setStrokeStyle(2, 0xffffff).setDepth(7).setVisible(false);
-    this.biteMark = this.add
+    this.pickSeed();
+    this.backdrop = this.add.image(0, 0, 'valley').setOrigin(0);
+    this.people = this.add.group();
+    this.herdSprites = this.add.group();
+    this.coop = this.add.image(266, 482, 'coop').setOrigin(0.5, 1).setDisplaySize(86, 86).setDepth(2);
+    this.chicken = this.add.image(304, 484, 'hen').setOrigin(0.5, 1).setDisplaySize(39, 39).setDepth(2);
+    this.terrain = this.add.layer().setDepth(1);
+    this.cursor = this.add.graphics().setDepth(2);
+    this.shadow = this.add.ellipse(0, 0, 34, 9, 0x201a0e, 0.34).setDepth(3);
+    this.actor = this.add.image(0, 0, 'farmer', 0).setOrigin(0.5, 1).setDepth(4);
+    this.toolProp = this.add.image(0, 0, 'hoe').setDepth(5).setVisible(false);
+    this.weather = this.add.graphics().setDepth(8);
+    this.waterLine = this.add.graphics().setDepth(5);
+    this.castInfo = this.add
       .text(0, 0, '', {
-        fontFamily: FONT,
-        fontSize: '26px',
-        fontStyle: 'bold',
-        color: '#fff36b',
-        stroke: '#000000',
-        strokeThickness: 5,
-        padding: { top: 4 },
+        fontFamily: 'Tahoma',
+        fontSize: '19px',
+        padding: { x: 10, y: 6 },
+        backgroundColor: '#243a2c',
+        color: '#ffedb1',
       })
       .setOrigin(0.5, 1)
-      .setDepth(8)
+      .setDepth(9)
       .setVisible(false);
-  }
-
-  private buildHud(): void {
-    this.add.rectangle(0, 0, GAME_WIDTH, 34, 0x000000, 0.55).setOrigin(0).setDepth(20);
-    this.statusText = this.add
-      .text(12, 3, '', { fontFamily: FONT, fontSize: '18px', color: '#ffffff', padding: { top: 4 } })
-      .setDepth(21);
-    this.add
-      .text(GAME_WIDTH - 250, 3, 'แรง', { fontFamily: FONT, fontSize: '18px', color: '#ffffff', padding: { top: 4 } })
-      .setDepth(21);
-    this.add.rectangle(GAME_WIDTH - 210, 9, 196, 16, 0x333333).setOrigin(0).setDepth(21);
-    this.staminaFill = this.add.rectangle(GAME_WIDTH - 208, 11, 192, 12, 0x6fdc5a).setOrigin(0).setDepth(22);
-
-    this.add
-      .text(GAME_WIDTH - 8, 38, 'H = วิธีเล่น', {
-        fontFamily: FONT,
-        fontSize: '13px',
-        color: '#ffffff',
-        backgroundColor: '#00000066',
-        padding: { x: 6, y: 4 },
-      })
-      .setOrigin(1, 0)
-      .setDepth(21);
-
-    this.slots = [
-      { label: () => 'จอบ', tool: () => ({ kind: 'hoe' }) },
-      { label: () => 'บัวรดน้ำ', tool: () => ({ kind: 'can' }) },
-      { label: () => 'มือเก็บ', tool: () => ({ kind: 'hand' }) },
-      {
-        label: () => {
-          const count = this.state.seeds[this.seedChoice];
-          if (this.ownedSeeds().length === 0) return 'ถุงเมล็ด (ว่าง)';
-          const off = inSeason(this.seedChoice, seasonOf(this.state.day)) ? '' : ' นอกฤดู';
-          return `เมล็ด${CROPS[this.seedChoice].name} x${count}${off}  [Q]`;
-        },
-        tool: () => ({ kind: 'seed', crop: this.seedChoice }),
-      },
-      { label: () => 'เบ็ด', tool: () => null }, // ROD_SLOT: handled by startFishing
-    ];
-    const slotW = GAME_WIDTH / this.slots.length;
-    this.slots.forEach((_slot, i) => {
-      const t = this.add
-        .text(i * slotW + slotW / 2, GAME_HEIGHT - 18, '', {
-          fontFamily: FONT,
-          fontSize: '15px',
-          color: '#ffffff',
-          backgroundColor: '#000000aa',
-          padding: { x: 6, y: 5 },
-        })
-        .setOrigin(0.5)
-        .setDepth(21);
-      this.slotTexts.push(t);
-    });
-
-    this.toastText = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 62, '', {
-        fontFamily: FONT,
-        fontSize: '18px',
-        color: '#fff7c2',
-        backgroundColor: '#000000cc',
-        padding: { x: 10, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(25)
-      .setVisible(false);
-  }
-
-  private buildOverlay(): void {
-    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setOrigin(0);
-    const panel = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 520, 340, 0x2b2118)
-      .setStrokeStyle(3, 0xd9a441);
-    this.overlayText = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
-        fontFamily: FONT,
-        fontSize: '20px',
-        color: '#ffffff',
-        align: 'center',
-        lineSpacing: 8,
-        padding: { top: 6 },
-      })
-      .setOrigin(0.5);
-    this.overlay = this.add.container(0, 0, [dim, panel, this.overlayText]).setDepth(40).setVisible(false);
-  }
-
-  private buildKeys(): void {
-    const kb = this.input.keyboard!;
-    const K = Phaser.Input.Keyboard.KeyCodes;
-    const codes: Record<string, number> = {
-      up: K.UP, down: K.DOWN, left: K.LEFT, right: K.RIGHT,
-      w: K.W, a: K.A, s: K.S, d: K.D,
-      space: K.SPACE, e: K.E, q: K.Q, h: K.H, esc: K.ESC, y: K.Y, f2: K.F2,
-      n1: K.ONE, n2: K.TWO, n3: K.THREE, n4: K.FOUR, n5: K.FIVE, n6: K.SIX,
+    this.hud = new Hud((c) => this.command(c), this.audioFx);
+    this.enterRegion(this.region);
+    this.renderActor(false, 0);
+    this.aim = this.front();
+    this.outline(this.aim);
+    const canvas = this.game.canvas;
+    const point = (ev: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: ((ev.clientX - r.left) * W) / r.width, y: ((ev.clientY - r.top) * H) / r.height };
     };
-    this.keys = {};
-    for (const [name, code] of Object.entries(codes)) this.keys[name] = kb.addKey(code);
+    let down: Point | null = null;
+    canvas.addEventListener('pointerdown', (ev) => {
+      this.audioFx.unlock();
+      down = { x: ev.clientX, y: ev.clientY };
+    });
+    canvas.addEventListener('pointercancel', () => {
+      down = null;
+    });
+    canvas.addEventListener('pointermove', (ev) => {
+      if (!this.hud.panel && !this.cast && ev.pointerType === 'mouse') {
+        const c = this.region === 'farm' ? cellAt(point(ev)) : null;
+        this.outline(c ?? this.aim);
+      }
+    });
+    canvas.addEventListener('pointerleave', () => this.outline(this.aim));
+    canvas.addEventListener('pointerup', (ev) => {
+      if (!down || Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 12) return;
+      down = null;
+      if (this.hud.panel) return;
+      if (this.cast) {
+        this.pull();
+        return;
+      }
+      const p = point(ev),
+        c = this.region === 'farm' ? cellAt(p) : null;
+      if (c) {
+        this.aim = c;
+        this.outline(c);
+        const foot = center(c);
+        this.go({ x: foot.x, y: foot.y - 9 }, () => this.work(c));
+        return;
+      }
+      const target = Object.keys(this.spots).find((id) => {
+        if (id === 'hen' && !this.state.village.coop) return false;
+        const pin = this.spots[id].pin;
+        return Math.abs(p.x - pin.x) < 37 && p.y >= pin.y - 12 && p.y <= pin.y + 59;
+      });
+      if (target) {
+        this.visit(target);
+        return;
+      }
+      if ((this.region === 'lake' && p.y < 600) || (this.region === 'coast' && p.y < 445)) {
+        this.visit('angling');
+        return;
+      }
+      if (this.region === 'farm' && p.x > 1204 && p.x < 1494 && p.y > 485 && p.y < 680) {
+        this.visit('pond');
+        return;
+      }
+      if (canWalk(this.region, p)) {
+        this.aim = null;
+        this.go(p);
+        return;
+      }
+      this.hud.toast('คลิกที่แปลงดิน ทางเดิน หรือป้ายสถานที่');
+    });
+    window.addEventListener('keydown', this.keyDown);
+    window.addEventListener('keyup', this.keyUp);
+    window.addEventListener('blur', this.clearKeys);
+    document.addEventListener('visibilitychange', this.visibility);
+    this.events.once('shutdown', () => {
+      window.removeEventListener('keydown', this.keyDown);
+      window.removeEventListener('keyup', this.keyUp);
+      window.removeEventListener('blur', this.clearKeys);
+      document.removeEventListener('visibilitychange', this.visibility);
+    });
+    this.hud.refresh(this.state, this.selected, this.seedChoice);
+    if (loaded.status === 'corrupt') this.hud.toast('อ่านเซฟเดิมไม่ได้ เริ่มฟาร์มใหม่แล้ว');
   }
-
-  // ---------- frame loop ----------
-
-  update(_time: number, deltaMs: number): void {
-    if (this.mode === 'play') this.updatePlay(deltaMs);
-    else this.updateOverlay();
-    this.refreshHud();
-    this.drawRain();
-  }
-
-  private drawRain(): void {
-    const wet = isWet(this.state.weather);
-    this.rainDim.setVisible(wet);
-    this.rainGfx.clear();
-    if (!wet) return;
-    const t = this.time.now;
-    const heavy = this.state.weather === 'storm';
-    this.rainGfx.lineStyle(heavy ? 2 : 1, 0xcfe8ff, 0.55);
-    const drops = heavy ? 140 : 80;
-    for (let i = 0; i < drops; i++) {
-      const x = (i * 137.5 + t * 0.12) % GAME_WIDTH;
-      const y = (i * 71.3 + t * (heavy ? 0.9 : 0.6)) % GAME_HEIGHT;
-      this.rainGfx.lineBetween(x, y, x - 4, y + 12);
-    }
-  }
-
-  private ownedSeeds(): CropId[] {
-    return CROP_IDS.filter((id) => this.state.seeds[id] > 0);
-  }
-
-  /** Point the seed bag at something useful: an in-season seed if the player owns one. */
-  private pickAvailableSeed(): void {
-    const owned = this.ownedSeeds();
-    if (owned.length === 0 || this.state.seeds[this.seedChoice] > 0) return;
-    const season = seasonOf(this.state.day);
-    this.seedChoice = owned.find((id) => inSeason(id, season)) ?? owned[0];
-  }
-
-  private cycleSeed(): void {
-    const owned = this.ownedSeeds();
-    if (owned.length === 0) {
-      this.toast(FAIL_TEXT.noSeed);
+  private clearKeys = () => {
+    this.keys.clear();
+  };
+  private visibility = () => {
+    this.keys.clear();
+    this.audioFx.mix();
+  };
+  private keyUp = (e: KeyboardEvent) => {
+    this.keys.delete(e.code);
+  };
+  private keyDown = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    this.audioFx.unlock();
+    const k = e.code,
+      p = this.hud.panel;
+    if (p) {
+      if (e.repeat) return;
+      if (
+        k === 'Escape' ||
+        (p === 'help' && ['KeyH', 'KeyE'].includes(k)) ||
+        (p === 'shop' && k === 'KeyE') ||
+        (p === 'summary' && ['KeyE', 'Space'].includes(k))
+      ) {
+        e.preventDefault();
+        this.command('close');
+      } else if (p === 'sleep' && k === 'KeyE') this.command('next');
+      else if (p === 'new' && k === 'KeyY') this.command('reset');
+      else if (p === 'shop' && /^Digit[1-6]$/.test(k)) {
+        const id = seedsForSale(this.state)[Number(k.slice(-1)) - 1];
+        if (id) this.command('buy-' + id);
+      }
       return;
     }
-    const at = owned.indexOf(this.seedChoice);
-    this.seedChoice = owned[(at + 1) % owned.length];
-    this.selected = 3;
+    if (k === 'Space' && (e.target as HTMLElement).matches('button:focus-visible')) return;
+    if (
+      [
+        'KeyW',
+        'KeyA',
+        'KeyS',
+        'KeyD',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+        'Space',
+        'F2',
+      ].includes(k)
+    )
+      e.preventDefault();
+    this.keys.add(k);
+    if (e.repeat) return;
+    if (this.cast) {
+      if (k === 'Space') this.pull();
+      if (k === 'Escape') this.stopCast();
+      return;
+    }
+    if (/^Digit[1-7]$/.test(k)) this.command('tool-' + (Number(k.slice(-1)) - 1));
+    if (k === 'KeyQ') this.command('seed');
+    if (k === 'KeyM') this.command('travel');
+    if (k === 'KeyI') this.command('bag');
+    if (k === 'KeyJ') this.command('journal');
+    if (k === 'KeyH') this.command('help');
+    if (k === 'F2') this.command('new');
+    if (k === 'Space') {
+      this.stopTravel();
+      if (this.region !== 'farm') {
+        const key =
+          this.selected === 4
+            ? 'angling'
+            : this.selected === 5
+              ? 'timber'
+              : this.selected === 2
+                ? 'herbs'
+                : '';
+        if (key && this.near(key)) this.useSite(key);
+        else this.hud.toast('เดินเข้าใกล้จุดใช้งานแล้วกด E หรือคลิกป้าย');
+      } else if (this.selected >= 5) {
+        const id = this.selected === 5 ? 'wood' : 'stone';
+        if (this.near(id)) this.useSite(id);
+        else this.hud.toast('เดินไปที่' + this.spots[id].label + 'ก่อน');
+      } else if (this.selected === 4) {
+        if (this.near('pond')) this.startCast();
+        else this.hud.toast(fail.notWater);
+      } else this.work(this.aim ?? this.front());
+    }
+    if (k === 'KeyE') {
+      const id = Object.keys(this.spots)
+        .filter((i) => (i !== 'hen' || this.state.village.coop) && this.near(i))
+        .sort((a, b) => this.distance(a) - this.distance(b))[0];
+      if (id) this.useSite(id);
+      else this.hud.toast('เดินเข้าใกล้ป้ายสถานที่ หรือคลิกป้ายเพื่อเดินไป');
+    }
+  };
+  private near(id: string) {
+    return this.distance(id) < 64;
   }
-
-  private pressed(name: string): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.keys[name]);
+  private distance(id: string) {
+    if (!this.spots[id]) return Infinity;
+    const p = this.spots[id].foot;
+    return Math.hypot(p.x - this.pos.x, p.y - this.pos.y);
   }
-
-  private numberPressed(): number {
-    for (let i = 1; i <= 6; i++) if (this.pressed(`n${i}`)) return i;
-    return 0;
+  private front() {
+    if (this.region !== 'farm') return null;
+    return cellAt({ x: this.pos.x + this.face.x * 48, y: this.pos.y + this.face.y * 31 });
   }
-
-  private updatePlay(deltaMs: number): void {
-    if (!this.fishing) this.movePlayer(deltaMs);
-
-    this.tickMs += deltaMs;
-    while (this.tickMs >= MS_PER_TICK) {
-      this.tickMs -= MS_PER_TICK;
+  private stopTravel() {
+    this.path = [];
+    this.arrived = undefined;
+  }
+  private go(p: Point, arrive?: () => void) {
+    this.stopTravel();
+    if (Math.hypot(this.pos.x - p.x, this.pos.y - p.y) < 9) {
+      arrive?.();
+      return;
+    }
+    this.aim = null;
+    this.outline(null);
+    this.path = route(this.pos, p, (point) => canWalk(this.region, point));
+    if (this.path.length) this.arrived = arrive;
+    else this.hud.toast('ไปไม่ถึงจุดนี้ เลือกทางเดินหรือช่องดินอีกครั้ง');
+  }
+  private visit(id: string) {
+    if (this.cast) {
+      if (id === 'pond' || id === 'angling') this.pull();
+      return;
+    }
+    this.aim = null;
+    if (!this.spots[id]) return;
+    this.go(this.spots[id].foot, () => this.useSite(id));
+  }
+  private enterRegion(region: Region) {
+    this.stopTravel();
+    this.stopCast();
+    this.keys.clear();
+    this.swing = 0;
+    this.state.country.region = region;
+    this.backdrop.setTexture(region === 'farm' ? 'valley' : region).setDisplaySize(W, H);
+    this.people.clear(true, true);
+    const add = (texture: string, x: number, y: number) =>
+      this.people.add(this.add.image(x, y, texture).setOrigin(0.5, 1).setDisplaySize(73, 73).setDepth(2));
+    if (region === 'farm') {
+      add('mali', 921, 365);
+      add('chai', 192, 392);
+    } else
+      for (const m of Object.values(this.spots)) if (m.sprite) add(m.sprite, m.foot.x - 22, m.foot.y - 2);
+    this.terrain.setVisible(region === 'farm');
+    this.coop.setVisible(region === 'farm' && this.state.village.coop);
+    this.chicken.setVisible(region === 'farm' && this.state.village.coop);
+    this.herdSignature = '';
+    this.renderHerd();
+    this.pos = { ...layouts[region].spawn };
+    this.face = { x: 0, y: 1 };
+    this.aim = this.front();
+    this.outline(this.aim);
+    if (region === 'farm') this.drawBed();
+    this.hud.setRegion(region);
+    this.hud.follow(this.pos.x);
+    this.renderActor(false, 0);
+    this.birdTime = 0;
+    this.audioFx.setRegion(region);
+  }
+  private renderHerd() {
+    const c = this.state.country,
+      signature = [this.region, c.duck, c.cow].join('/');
+    if (signature === this.herdSignature) return;
+    this.herdSignature = signature;
+    this.herdSprites.clear(true, true);
+    if (this.region !== 'ranch') return;
+    for (const id of ['duck', 'cow'] as const)
+      for (let i = 0; i < c[id]; i++) {
+        const x = (id === 'duck' ? 1150 : 180) + (i % 3) * 70,
+          y = 311 + Math.floor(i / 3) * 49;
+        const size = id === 'duck' ? 44 : 73;
+        this.herdSprites.add(this.add.image(x, y, id).setDisplaySize(size, size).setDepth(2));
+      }
+  }
+  private useSite(id: string) {
+    if (id.startsWith('to-')) {
+      this.enterRegion(id.slice(3) as Region);
+      return;
+    }
+    if (Object.hasOwn(npcs, id)) {
+      this.open(id as Person);
+      return;
+    }
+    if (id === 'angling') {
+      this.selected = 4;
+      this.startCast();
+      return;
+    }
+    if (id === 'herd') {
+      this.open('herd');
+      return;
+    }
+    if (id === 'herbs' || id === 'timber') {
+      this.selected = id === 'timber' ? 5 : 2;
+      this.swing = 1;
+      this.toolProp.setTexture(toolArt[this.selected]);
+      this.audioFx.play(id === 'timber' ? 'hoe' : 'hand');
+      this.hud.toast(forage(this.state, id === 'timber'));
+      return;
+    }
+    if (id === 'mali' || id === 'chai') {
+      greet(this.state, id);
+      this.open(id);
+      return;
+    }
+    if (id === 'hen') {
+      this.hud.toast(careForHen(this.state));
+      return;
+    }
+    if (id === 'wood' || id === 'stone' || id === 'berry') {
+      const slot = id === 'wood' ? 5 : id === 'stone' ? 6 : 2;
+      if (this.selected !== slot) {
+        this.hud.toast(
+          'เลือก' +
+            ['จอบ', 'บัวรดน้ำ', 'มือเก็บเกี่ยว', 'ถุงเมล็ด', 'เบ็ด', 'ขวาน', 'อีเต้อ'][slot] +
+            'ก่อน',
+        );
+        return;
+      }
+      const stamina = this.state.stamina;
+      this.hud.toast(gather(this.state, id));
+      if (stamina !== this.state.stamina) {
+        this.swing = 1;
+        this.toolProp.setTexture(toolArt[slot]);
+        this.audioFx.play(id === 'berry' ? 'hand' : 'hoe');
+      }
+      return;
+    }
+    if (id === 'house') this.open('sleep');
+    if (id === 'pond') {
+      this.selected = 4;
+      this.startCast();
+    }
+    if (id === 'crate') {
+      const n = shipAll(this.state);
+      this.hud.toast(n ? 'ใส่ลังแล้ว ' + n + ' ชิ้น รับเงินพรุ่งนี้เช้า' : fail.nothingToShip);
+      if (n) this.audioFx.play('coin');
+    }
+    if (id === 'stall') {
+      const closed = shopClosedReason(this.state);
+      if (closed) this.hud.toast(fail[closed]);
+      else this.open('shop');
+    }
+  }
+  private command(cmd: string) {
+    const s = this.state;
+    if (cmd.startsWith('travel-')) {
+      const dest = cmd.slice(7);
+      if (!Object.hasOwn(regionNames, dest)) return;
+      this.hud.close();
+      this.enterRegion(dest as Region);
+      return;
+    }
+    if (cmd.startsWith('trade-')) {
+      const panel = this.hud.panel;
+      if (!panel) return;
+      const message = trade(s, cmd.slice(6));
+      this.pickSeed();
+      this.hud.invalidate();
+      this.renderHerd();
+      this.open(panel);
+      this.hud.toast(message);
+      this.audioFx.play('select');
+      return;
+    }
+    if (cmd === 'farm' && this.region !== 'farm') {
+      if (this.hud.panel) this.hud.close();
+      this.enterRegion('farm');
+      return;
+    }
+    if (cmd === 'gift' || cmd === 'order' || cmd === 'build') {
+      const person = this.hud.panel;
+      if (person !== 'mali' && person !== 'chai') return;
+      const message =
+        cmd === 'gift'
+          ? giveBerry(s, person as Villager)
+          : cmd === 'order'
+            ? completeOrder(s)
+            : buildCoop(s);
+      this.hud.invalidate();
+      this.open(person);
+      this.hud.toast(message);
+      return;
+    }
+    if (cmd === 'sound') {
+      this.audioFx.muted = !this.audioFx.muted;
+      this.audioFx.persist();
+      this.hud.soundIcon();
+      if (this.hud.panel === 'settings') this.open('settings');
+      return;
+    }
+    if (cmd === 'close' || cmd === 'farm') {
+      if (this.hud.panel) this.hud.close();
+      return;
+    }
+    if (cmd === 'save') {
+      this.hud.toast(saveGame(s) ? 'บันทึกฟาร์มแล้ว' : 'บันทึกไม่สำเร็จ');
+      return;
+    }
+    if (cmd === 'next') {
+      this.finishDay(false);
+      return;
+    }
+    if (cmd === 'reset') {
+      this.state = createNewGame();
+      this.selected = 0;
+      this.seedChoice = 'morningGlory';
+      this.resetDay();
+      this.hud.close();
+      this.hud.toast(saveGame(this.state) ? 'เริ่มฟาร์มใหม่แล้ว' : 'เริ่มฟาร์มแล้ว แต่บันทึกไม่สำเร็จ');
+      return;
+    }
+    if (cmd.startsWith('buy-')) {
+      const result = buySeed(s, cmd.slice(4) as CropId);
+      if (result.ok) {
+        this.audioFx.play('coin');
+        this.pickSeed();
+        this.open('shop');
+        this.hud.toast('ซื้อเมล็ดแล้ว');
+      } else this.hud.toast(fail[result.reason]);
+      return;
+    }
+    if (cmd.startsWith('equip-')) {
+      this.seedChoice = cmd.slice(6) as CropId;
+      this.selected = 3;
+      this.hud.close();
+      return;
+    }
+    if (cmd.startsWith('site-')) {
+      this.visit(cmd.slice(5));
+      return;
+    }
+    if (this.cast) this.stopCast();
+    this.stopTravel();
+    if (cmd.startsWith('tool-')) {
+      this.selected = Number(cmd.slice(5));
+      this.audioFx.play('select');
+      return;
+    }
+    if (cmd === 'seed') {
+      const ids = CROP_IDS.filter((i) => s.seeds[i] > 0);
+      if (!ids.length) {
+        this.hud.toast(fail.noSeed);
+        return;
+      }
+      this.selected = 3;
+      this.seedChoice = ids[(ids.indexOf(this.seedChoice) + 1) % ids.length];
+      return;
+    }
+    this.open(cmd as Panel);
+  }
+  private open(p: Panel) {
+    this.stopTravel();
+    this.keys.clear();
+    this.hud.open(p, this.state);
+  }
+  private pickSeed() {
+    if (!this.state.seeds[this.seedChoice]) {
+      const owned = CROP_IDS.filter((i) => this.state.seeds[i] > 0);
+      this.seedChoice =
+        owned.find((i) => CROPS[i].seasons.includes(seasonOf(this.state.day))) ??
+        owned[0] ??
+        this.seedChoice;
+    }
+  }
+  private work(c: Cell | null) {
+    if (this.selected >= 5) {
+      this.hud.toast(this.selected === 5 ? 'ใช้ขวานกับกองไม้' : 'ใช้อีเต้อกับกองหิน');
+      return;
+    }
+    if (!c || this.selected === 4) {
+      this.hud.toast(this.selected === 4 ? fail.notWater : fail.notField);
+      return;
+    }
+    const tool: Tool =
+      this.selected === 3
+        ? { kind: 'seed', crop: this.seedChoice }
+        : { kind: (['hoe', 'can', 'hand'] as const)[this.selected as 0 | 1 | 2] };
+    const result = useTool(this.state, tool, c.col, c.row);
+    if (!result.ok) {
+      this.audioFx.play('error');
+      this.hud.toast(fail[result.reason]);
+      return;
+    }
+    this.hud.invalidate();
+    this.aim = c;
+    this.outline(c);
+    this.audioFx.play(tool.kind);
+    this.swing = 1;
+    this.toolProp.setTexture(tool.kind);
+    this.pickSeed();
+    this.drawBed();
+    const pos = center(c);
+    if (!this.reduced)
+      for (let i = 0; i < 9; i++) {
+        const wet = tool.kind === 'can',
+          dot = this.add
+            .ellipse(
+              pos.x,
+              pos.y,
+              wet ? 3 : 4,
+              wet ? 6 : 3,
+              wet ? 0xb9e4f2 : tool.kind === 'hoe' ? 0x84572a : 0xabc67a,
+              0.9,
+            )
+            .setDepth(6);
+        this.tweens.add({
+          targets: dot,
+          x: pos.x + (Math.random() - 0.5) * 53,
+          y: pos.y - 9 - Math.random() * 22,
+          alpha: 0,
+          duration: 350 + Math.random() * 180,
+          onComplete: () => dot.destroy(),
+        });
+      }
+    if (tool.kind === 'hand') this.hud.toast('เก็บผลผลิตแล้ว');
+  }
+  private startCast() {
+    if (this.cast) return;
+    const pond = MAP_OBJECTS.find((o) => o.id === 'pond')!;
+    const res = this.region === 'farm' ? castLine(this.state, pond.col, pond.row) : spendCast(this.state);
+    if (!res.ok) {
+      this.hud.toast(fail[res.reason]);
+      return;
+    }
+    this.stopTravel();
+    this.cast = { ms: rollBiteDelayMs(this.state, Math.random) };
+    this.face = { x: 0, y: -1 };
+    this.audioFx.play('rod');
+    this.castInfo
+      .setText('รอปลากินเบ็ด…')
+      .setPosition(this.pos.x, this.pos.y - 115)
+      .setVisible(true);
+  }
+  private pull() {
+    if (!this.cast) return;
+    if (this.cast.fish) {
+      const id = this.cast.fish;
+      landFish(this.state, id);
+      this.audioFx.play('coin');
+      this.hud.toast('ได้' + FISH[id].name + ' · ขายได้ ฿' + FISH[id].price);
+    } else this.hud.toast('ดึงเบ็ดเร็วไป ลองเหวี่ยงใหม่');
+    this.stopCast();
+  }
+  private stopCast() {
+    this.cast = null;
+    this.castInfo.setVisible(false);
+    this.waterLine.clear();
+  }
+  private updateCast(dt: number, t: number) {
+    const f = this.cast!;
+    f.ms -= dt;
+    if (f.ms <= 0) {
+      if (f.fish) {
+        this.hud.toast('ปลาหลุดแล้ว ลองอีกครั้ง');
+        this.stopCast();
+        return;
+      }
+      f.fish = rollFish(
+        this.state,
+        Math.random,
+        this.region === 'coast' ? 'sea' : this.region === 'lake' ? 'lake' : 'farm',
+      );
+      f.ms = FISH[f.fish].windowMs;
+      this.castInfo.setText('ปลากินเบ็ด! คลิก / Space');
+      this.audioFx.play('bite');
+    }
+    const x = this.pos.x + (this.region === 'farm' ? 76 : 18),
+      y = this.pos.y + (this.region === 'farm' ? 14 : -68) + Math.sin(t * 0.006) * 2,
+      g = this.waterLine.clear();
+    g.lineStyle(1.2, 0xf3e4c7, 0.8).lineBetween(this.pos.x + 8, this.pos.y - 45, x, y);
+    g.fillStyle(0xb54a2b).fillCircle(x, y, 4);
+    g.lineStyle(1, 0xf9f3c7, 0.5).strokeEllipse(x, y + 3, 13 + Math.sin(t * 0.006) * 5, 4);
+  }
+  private resetDay() {
+    this.enterRegion('farm');
+    this.stopTravel();
+    this.stopCast();
+    this.hud.invalidate();
+    this.pos = { ...SPAWN };
+    this.face = { x: 0, y: 1 };
+    this.tick = 0;
+    this.aim = this.front();
+    this.drawBed();
+    this.outline(this.aim);
+    this.renderActor(false, 0);
+  }
+  private finishDay(passed: boolean) {
+    const summary = endDay(this.state, passed);
+    this.resetDay();
+    this.audioFx.play('morning');
+    this.hud.open('summary', this.state, summary);
+    if (!saveGame(this.state)) this.hud.toast('บันทึกไม่สำเร็จ');
+  }
+  private drawBed() {
+    this.terrain.removeAll(true);
+    const soil = this.add.graphics();
+    this.terrain.add(soil);
+    for (let r = 0; r < FIELD.h; r++)
+      for (let c = 0; c < FIELD.w; c++) {
+        const tile = this.state.tiles[r + FIELD.row][c + FIELD.col];
+        if (tile.kind !== 'tilled') continue;
+        const p = corner((c + 0.5) / FIELD.w, (r + 0.5) / FIELD.h),
+          width = (corner(1, (r + 0.5) / FIELD.h).x - corner(0, (r + 0.5) / FIELD.h).x) / FIELD.w;
+        soil
+          .fillStyle(tile.watered ? 0x211910 : 0x513219, tile.watered ? 0.64 : 0.45)
+          .fillEllipse(p.x, p.y, width * 0.92, 29);
+        soil.lineStyle(2, tile.watered ? 0x9b8364 : 0xc09a69, 0.55);
+        for (let j = -1; j <= 1; j++)
+          soil.lineBetween(
+            p.x - width * 0.31 + j * 1.4,
+            p.y + j * 6,
+            p.x + width * 0.32,
+            p.y + j * 6 - 1,
+          );
+        if (tile.crop) {
+          const crop = tile.crop,
+            progress = crop.growth / CROPS[crop.id].days,
+            size = 17 + progress * (width * 1.09 - 14);
+          const plant = this.add
+            .image(p.x, p.y + 15, 'plants', crop.growth === 0 ? 0 : CROP_IDS.indexOf(crop.id))
+            .setOrigin(0.5, 1)
+            .setDisplaySize(size, size);
+          if (crop.withered) plant.setTint(0x766148).setAngle(22).setAlpha(0.8);
+          this.terrain.add(plant);
+        }
+      }
+  }
+  private outline(c: Cell | null) {
+    if (same(c, this.lastOutline)) return;
+    this.lastOutline = c;
+    const g = this.cursor.clear();
+    if (!c) return;
+    const u = (c.col - FIELD.col) / FIELD.w,
+      v = (c.row - FIELD.row) / FIELD.h;
+    const points = [
+      corner(u, v),
+      corner(u + 1 / FIELD.w, v),
+      corner(u + 1 / FIELD.w, v + 1 / FIELD.h),
+      corner(u, v + 1 / FIELD.h),
+    ].map((p) => new Phaser.Math.Vector2(p.x, p.y));
+    g.fillStyle(0xf5d785, 0.1).fillPoints(points, true);
+    g.lineStyle(2, 0xffe8ae, 0.9).strokePoints(points, true);
+  }
+  private renderActor(moving: boolean, t: number) {
+    const height = 78;
+    const sideways = Math.abs(this.face.x) > Math.abs(this.face.y);
+    const facingFrame = sideways ? 3 : this.face.y < 0 ? 6 : 0;
+    const frame = facingFrame + (moving ? [0, 1, 0, 2][Math.floor(this.steps / 110) % 4] : 0);
+    const bob = this.reduced
+      ? 0
+      : moving
+        ? Math.sin(this.steps * 0.024) * 1.3
+        : Math.sin(t * 0.002) * 0.5;
+    const swing = this.reduced ? 0 : Math.sin(this.swing * Math.PI);
+    this.actor
+      .setFrame(frame)
+      .setPosition(this.pos.x, this.pos.y + bob)
+      .setDisplaySize(height, height)
+      .setFlipX(sideways && this.face.x > 0)
+      .setAngle(swing * (this.face.x > 0.25 ? 9 : -9));
+    this.shadow.setPosition(this.pos.x + 3, this.pos.y - 1).setDisplaySize(height * 0.34, height * 0.075);
+    this.toolProp.setVisible(this.swing > 0 || !!this.cast);
+    if (this.toolProp.visible) {
+      if (this.cast) this.toolProp.setTexture('rod');
+      this.toolProp
+        .setPosition(this.pos.x + height * 0.19, this.pos.y - height * 0.43)
+        .setDisplaySize(height * 0.45, height * 0.45)
+        .setAngle(this.cast ? -22 : -30 + swing * 65);
+    }
+  }
+  update(t: number, delta: number) {
+    if (!this.hud || document.hidden) return;
+    const dt = Math.min(delta, 100);
+    this.coop.setVisible(this.region === 'farm' && this.state.village.coop);
+    this.chicken.setVisible(this.region === 'farm' && this.state.village.coop);
+    if (this.state.village.coop && !this.reduced)
+      this.chicken.setX(307 + Math.sin(t / 2100) * 9).setFlipX(Math.cos(t / 2100) > 0);
+    if (this.hud.panel) {
+      this.hud.refresh(this.state, this.selected, this.seedChoice);
+      return;
+    }
+    this.tick += dt;
+    if (this.tick >= MS_PER_TICK) {
+      this.tick -= MS_PER_TICK;
       if (advanceMinutes(this.state, MINUTES_PER_TICK)) {
         this.finishDay(true);
         return;
       }
     }
-
-    if (this.fishing) {
-      this.updateFishing(deltaMs);
-      return;
-    }
-
-    const n = this.numberPressed();
-    if (n >= 1 && n <= this.slots.length) this.selected = n - 1;
-    if (this.pressed('q')) this.cycleSeed();
-
-    const target = this.targetTile();
-    this.cursor.setPosition(target.col * TILE_SIZE, target.row * TILE_SIZE);
-
-    if (this.pressed('h')) this.open('help');
-
-    if (this.selected === ROD_SLOT) {
-      if (this.pressed('space')) this.startFishing(target.col, target.row);
-    } else if (this.pressed('space')) {
-      const tool = this.slots[this.selected].tool();
-      const result = tool ? useTool(this.state, tool, target.col, target.row) : null;
-      if (result?.ok) {
-        this.refreshTile(target.col, target.row);
-        this.pickAvailableSeed(); // move on when the last seed of a kind is used
-      } else this.toast(FAIL_TEXT[result ? result.reason : 'noSeed']);
-    }
-
-    if (this.pressed('e')) this.interact(target.col, target.row);
-    if (this.pressed('f2')) this.open('confirmNew');
-  }
-
-  // ---------- fishing ----------
-
-  private startFishing(col: number, row: number): void {
-    const result = castLine(this.state, col, row);
-    if (!result.ok) {
-      this.toast(FAIL_TEXT[result.reason]);
-      return;
-    }
-    this.fishing = { phase: 'wait', ms: rollBiteDelayMs(this.state, Math.random) };
-    this.bobber
-      .setPosition((col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE)
-      .setAlpha(1)
-      .setVisible(true);
-    this.biteMark
-      .setPosition(this.player.x, this.player.y - this.player.height / 2 - 2)
-      .setText('...')
-      .setVisible(true);
-  }
-
-  private stopFishing(message?: string): void {
-    this.fishing = null;
-    this.bobber.setVisible(false);
-    this.biteMark.setVisible(false);
-    if (message) this.toast(message);
-  }
-
-  private updateFishing(deltaMs: number): void {
-    const f = this.fishing!;
-    if (this.pressed('esc')) {
-      this.stopFishing('เก็บเบ็ดแล้ว');
-      return;
-    }
-    const pulled = this.pressed('space');
-
-    if (f.phase === 'wait') {
-      if (pulled) {
-        this.stopFishing('ดึงเร็วไป ได้เบ็ดเปล่า');
-        return;
-      }
-      f.ms -= deltaMs;
-      if (f.ms <= 0) {
-        // The fish is chosen at the moment of the bite, so the hour that counts is now.
-        const fish = rollFish(this.state, Math.random);
-        this.fishing = { phase: 'bite', ms: FISH[fish].windowMs, fish };
-        this.bobber.setAlpha(0.35);
-        this.biteMark.setText('!');
-      }
-      return;
-    }
-
-    if (pulled) {
-      landFish(this.state, f.fish);
-      this.stopFishing(`ได้${FISH[f.fish].name}!  ขายได้ ฿${FISH[f.fish].price}`);
-      return;
-    }
-    f.ms -= deltaMs;
-    if (f.ms <= 0) this.stopFishing('ช้าไป ปลาหลุดแล้ว');
-  }
-
-  private interact(col: number, row: number): void {
-    const obj = inBounds(col, row) ? objectAt(col, row) : null;
-    if (!obj) return;
-    if (obj.id === 'house') this.open('confirmSleep');
-    else if (obj.id === 'crate') {
-      const moved = shipAll(this.state);
-      this.toast(moved > 0 ? `ใส่ลังแล้ว ${moved} ชิ้น รับเงินพรุ่งนี้เช้า` : FAIL_TEXT.nothingToShip);
-    } else if (obj.id === 'stall') {
-      const closed = shopClosedReason(this.state);
-      if (closed) this.toast(FAIL_TEXT[closed]);
-      else this.open('shop');
-    }
-  }
-
-  private updateOverlay(): void {
-    switch (this.mode) {
-      case 'shop': {
-        const n = this.numberPressed();
-        const stock = seedsForSale(this.state);
-        if (n >= 1 && n <= stock.length) {
-          const result = buySeed(this.state, stock[n - 1]);
-          if (!result.ok) this.toast(FAIL_TEXT[result.reason]);
-          else this.pickAvailableSeed();
-          this.overlayText.setText(this.shopText());
+    let moved = false;
+    if (this.cast) this.updateCast(dt, t);
+    else {
+      const has = (a: string, b: string) => Number(this.keys.has(a) || this.keys.has(b));
+      let dx = has('KeyD', 'ArrowRight') - has('KeyA', 'ArrowLeft'),
+        dy = has('KeyS', 'ArrowDown') - has('KeyW', 'ArrowUp');
+      const speed = dt * 0.245;
+      if (dx || dy) {
+        this.stopTravel();
+        const len = Math.hypot(dx, dy);
+        dx /= len;
+        dy /= len;
+        this.face = { x: dx, y: dy };
+        const newX = this.pos.x + dx * speed,
+          newY = this.pos.y + dy * speed;
+        if (canWalk(this.region, { x: newX, y: this.pos.y })) {
+          moved ||= newX !== this.pos.x;
+          this.pos.x = newX;
         }
-        if (this.pressed('e') || this.pressed('esc')) this.close();
-        break;
-      }
-      case 'summary':
-        if (this.pressed('e') || this.pressed('space')) this.close();
-        break;
-      case 'help':
-        if (this.pressed('h') || this.pressed('esc') || this.pressed('e')) this.close();
-        break;
-      case 'confirmSleep':
-        if (this.pressed('e')) this.finishDay(false);
-        else if (this.pressed('esc')) this.close();
-        break;
-      case 'confirmNew':
-        if (this.pressed('y')) {
-          this.state = createNewGame();
-          this.seedChoice = 'morningGlory';
-          saveGame(this.state);
-          this.resetPlayer();
-          this.refreshAllTiles();
-          this.close();
-          this.toast('เริ่มเกมใหม่แล้ว');
-        } else if (this.pressed('esc')) this.close();
-        break;
-    }
-  }
-
-  // ---------- day cycle ----------
-
-  private finishDay(passedOut: boolean): void {
-    this.stopFishing();
-    this.lastSummary = endDay(this.state, passedOut);
-    const saved = saveGame(this.state);
-    this.tickMs = 0;
-    this.resetPlayer();
-    this.refreshAllTiles();
-    this.open('summary');
-    if (!saved) this.toast('บันทึกเกมไม่สำเร็จ', 5000);
-  }
-
-  // ---------- overlays ----------
-
-  private open(mode: Exclude<Mode, 'play'>): void {
-    this.mode = mode;
-    const text =
-      mode === 'shop' ? this.shopText()
-      : mode === 'summary' ? this.summaryText()
-      : mode === 'help' ? HELP_TEXT
-      : mode === 'confirmSleep' ? 'เข้านอนเลยไหม?\n\nE = นอน     Esc = ยังก่อน'
-      : 'เริ่มเกมใหม่?\nเซฟเดิมจะหายถาวร\n\nY = เริ่มใหม่     Esc = ยกเลิก';
-    this.overlayText.setText(text);
-    this.overlay.setVisible(true);
-  }
-
-  private close(): void {
-    this.mode = 'play';
-    this.overlay.setVisible(false);
-  }
-
-  private shopText(): string {
-    const lines = seedsForSale(this.state).map((id, i) => {
-      const c = CROPS[id];
-      return `${i + 1}  เมล็ด${c.name}   ฿${c.seedPrice}   (โต ${c.days} วัน ขาย ฿${c.sellPrice})   มี ${this.state.seeds[id]}`;
-    });
-    const season = SEASON_NAMES[seasonOf(this.state.day)];
-    const left = 14 - dayOfSeason(this.state.day);
-    return [
-      `แผงขายเมล็ด${season}`,
-      `เงิน ฿${this.state.money}     เหลืออีก ${left} วันในฤดูนี้`,
-      '',
-      ...lines,
-      '',
-      'กดเลขเพื่อซื้อ     E = ปิด',
-    ].join('\n');
-  }
-
-  private dateText(day: number): string {
-    return `ปี ${yearOf(day)} ${SEASON_NAMES[seasonOf(day)]} วันที่ ${dayOfSeason(day)}`;
-  }
-
-  private summaryText(): string {
-    const s = this.lastSummary!;
-    const sold = s.sold.map((l) => `${l.name} x${l.count}   ฿${l.amount}`);
-    const notes: string[] = [];
-    if (s.newSeason) notes.push(`เข้าสู่${SEASON_NAMES[s.newSeason]}แล้ว แผงขายเปลี่ยนเมล็ด`);
-    if (s.withered > 0) notes.push(`พืช ${s.withered} ต้นทนฤดูใหม่ไม่ได้ เหี่ยวไปแล้ว`);
-    if (s.seasonWarning > 0) {
-      notes.push(
-        s.seasonWarning === 1
-          ? 'วันนี้วันสุดท้ายของฤดู พืชที่ไม่ทนฤดูใหม่จะเหี่ยวพรุ่งนี้เช้า'
-          : `อีก ${s.seasonWarning} วันเปลี่ยนฤดู รีบเก็บพืชที่ไม่ทนฤดูใหม่`,
-      );
-    }
-    return [
-      `เช้า${this.dateText(s.day)}`,
-      s.passedOut ? 'เมื่อคืนหมดแรงล้มหลับ วันนี้แรงเหลือครึ่งเดียว' : 'นอนเต็มอิ่ม แรงกลับมาเต็ม',
-      `วันนี้${WEATHER_NAMES[s.weather]}     พรุ่งนี้${WEATHER_NAMES[s.forecast]}`,
-      ...notes,
-      '',
-      ...(sold.length ? sold : ['เมื่อวานไม่ได้ส่งของขาย']),
-      `รายได้ ฿${s.total}     เงินรวม ฿${this.state.money}`,
-      '',
-      'E = เริ่มวันใหม่',
-    ].join('\n');
-  }
-
-  private toast(message: string, ms = 1800): void {
-    this.toastText.setText(message).setVisible(true);
-    this.toastTimer?.remove();
-    this.toastTimer = this.time.delayedCall(ms, () => this.toastText.setVisible(false));
-  }
-
-  // ---------- player ----------
-
-  private resetPlayer(): void {
-    this.player.setPosition((SPAWN_TILE.col + 0.5) * TILE_SIZE, (SPAWN_TILE.row + 0.5) * TILE_SIZE);
-    this.facing = { x: 0, y: 1 };
-  }
-
-  /** Centre of the player's feet, used for collisions and tile lookup. */
-  private feet(x = this.player.x, y = this.player.y): { x: number; y: number } {
-    return { x, y: y + this.player.height / 2 - 6 };
-  }
-
-  private canStand(x: number, y: number): boolean {
-    const f = this.feet(x, y);
-    for (const ox of [-10, 10]) {
-      for (const oy of [-5, 5]) {
-        const px = f.x + ox;
-        const py = f.y + oy;
-        if (px < 0 || px >= GAME_WIDTH || py < 0 || py >= GAME_HEIGHT) return false;
-        if (objectAt(Math.floor(px / TILE_SIZE), Math.floor(py / TILE_SIZE))) return false;
+        if (canWalk(this.region, { x: this.pos.x, y: newY })) {
+          moved ||= newY !== this.pos.y;
+          this.pos.y = newY;
+        }
+        this.aim = this.front();
+        this.outline(this.aim);
+      } else if (this.path.length) {
+        const next = this.path[0],
+          dx = next.x - this.pos.x,
+          dy = next.y - this.pos.y,
+          len = Math.hypot(dx, dy);
+        if (len > 0.1) this.face = { x: dx / len, y: dy / len };
+        if (len <= speed) {
+          this.pos = { ...next };
+          this.path.shift();
+        } else {
+          this.pos.x += (dx / len) * speed;
+          this.pos.y += (dy / len) * speed;
+        }
+        moved = true;
+        if (!this.path.length) {
+          const action = this.arrived;
+          this.arrived = undefined;
+          action?.();
+        }
       }
     }
-    return true;
-  }
-
-  private movePlayer(deltaMs: number): void {
-    const k = this.keys;
-    let dx = (k.right.isDown || k.d.isDown ? 1 : 0) - (k.left.isDown || k.a.isDown ? 1 : 0);
-    let dy = (k.down.isDown || k.s.isDown ? 1 : 0) - (k.up.isDown || k.w.isDown ? 1 : 0);
-    if (dx === 0 && dy === 0) return;
-
-    // Face the last pressed axis; vertical wins on diagonals so facing is always one tile.
-    this.facing = dy !== 0 ? { x: 0, y: dy } : { x: dx, y: 0 };
-
-    if (dx !== 0 && dy !== 0) {
-      dx *= Math.SQRT1_2;
-      dy *= Math.SQRT1_2;
+    if (moved) {
+      this.hud.follow(this.pos.x);
+      this.steps += dt;
+      if (this.steps - this.lastStep > 360) {
+        this.lastStep = this.steps;
+        this.audioFx.play('step');
+      }
     }
-    const step = (PLAYER_SPEED * Math.min(deltaMs, 50)) / 1000;
-    if (this.canStand(this.player.x + dx * step, this.player.y)) this.player.x += dx * step;
-    if (this.canStand(this.player.x, this.player.y + dy * step)) this.player.y += dy * step;
-  }
-
-  playerTile(): { col: number; row: number } {
-    const f = this.feet();
-    return { col: Math.floor(f.x / TILE_SIZE), row: Math.floor(f.y / TILE_SIZE) };
-  }
-
-  /** The tile directly in front of the player. May be outside the map. */
-  targetTile(): { col: number; row: number } {
-    const t = this.playerTile();
-    return { col: t.col + this.facing.x, row: t.row + this.facing.y };
-  }
-
-  // ---------- drawing ----------
-
-  private refreshAllTiles(): void {
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) this.refreshTile(col, row);
+    this.swing = Math.max(0, this.swing - dt / 470);
+    this.renderActor(moved, t);
+    if (t > this.birdTime) {
+      this.audioFx.ambience(isWet(this.state.weather), this.state.minutes >= 1140);
+      this.birdTime = t + 4500 + Math.random() * 4500;
     }
+    this.drawWeather(t);
+    this.hud.refresh(this.state, this.selected, this.seedChoice);
   }
-
-  private refreshTile(col: number, row: number): void {
-    const tile = this.state.tiles[row][col];
-    const grass = GRASS[seasonOf(this.state.day)];
-    const base = isFarmable(col, row) ? grass.field : grass.yard;
-    const color = tile.kind === 'grass' ? base : tile.watered ? COLORS.watered : COLORS.tilled;
-    this.tileRects[row][col].setFillStyle(color);
-
-    const mark = this.cropMarks[row][col];
-    if (!tile.crop) {
-      mark.setVisible(false);
-      return;
+  private drawWeather(t: number) {
+    const g = this.weather.clear(),
+      s = this.state,
+      wet = isWet(s.weather),
+      night = Math.max(0, Math.min(1, (s.minutes - 1010) / 210));
+    if (night) g.fillStyle(0x172343, 0.65 * night).fillRect(0, 0, W, H);
+    if (s.weather === 'heat') g.fillStyle(0xf6b148, 0.1).fillRect(0, 0, W, H);
+    if (seasonOf(s.day) === 'cool') g.fillStyle(0xa0c3dc, 0.09).fillRect(0, 0, W, H);
+    if (wet) {
+      const storm = s.weather === 'storm';
+      g.fillStyle(0x1c3444, storm ? 0.39 : 0.23).fillRect(0, 0, W, H);
+      if (!this.reduced) {
+        g.lineStyle(1.3, 0xdfedf3, 0.48);
+        for (let i = 0; i < (storm ? 150 : 80); i++) {
+          const x = (i * 149.3 + t * 0.09) % W,
+            y = (i * 113.9 + t * 0.58) % H;
+          g.lineBetween(x, y, x - 5, y + 15);
+        }
+      }
+    } else if (!this.reduced) {
+      for (let i = 0; i < 10; i++) {
+        const x = (i * 197 + t * 0.011) % W,
+          y = 440 + ((i * 97) % 360) + Math.sin(t * 0.001 + i) * 9;
+        g.fillStyle(0xffe6af, 0.32 + 0.19 * Math.sin(t * 0.002 + i)).fillCircle(x, y, 1.65);
+      }
     }
-    if (tile.crop.withered) {
-      mark.setVisible(true).setRadius(9).setFillStyle(COLORS.withered).setStrokeStyle(2, 0x2e2616);
-      return;
-    }
-    const def = CROPS[tile.crop.id as CropId];
-    const ripe = isRipe(this.state, col, row);
-    const progress = tile.crop.growth / def.days;
-    mark
-      .setVisible(true)
-      .setRadius(4 + progress * 14)
-      .setFillStyle(ripe ? def.color : COLORS.sprout)
-      .setStrokeStyle(ripe ? 3 : 1, ripe ? 0xffffff : 0x1d4d1d);
-  }
-
-  private refreshHud(): void {
-    const s = this.state;
-    this.statusText.setText(
-      `${this.dateText(s.day)} · ${formatClock(s.minutes)} · วันนี้${WEATHER_NAMES[s.weather]} · พรุ่งนี้${WEATHER_NAMES[s.forecast]} · ฿${s.money} · กระเป๋า ${this.produceCount()}`,
-    );
-    this.staminaFill.width = 192 * (s.stamina / MAX_STAMINA);
-    this.staminaFill.setFillStyle(s.stamina > 25 ? 0x6fdc5a : 0xe0533a);
-    this.slotTexts.forEach((t, i) => {
-      t.setText(`${i + 1} ${this.slots[i].label()}`);
-      t.setBackgroundColor(i === this.selected ? '#d9a441' : '#000000aa');
-      t.setColor(i === this.selected ? '#000000' : '#ffffff');
-    });
-  }
-
-  private produceCount(): number {
-    const crops = CROP_IDS.reduce((sum, id) => sum + this.state.produce[id], 0);
-    return FISH_IDS.reduce((sum, id) => sum + this.state.fish[id], crops);
   }
 }

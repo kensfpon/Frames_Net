@@ -1,6 +1,7 @@
 import {
   CROPS,
   CROP_IDS,
+  MARKET_CROPS,
   HEAT_EXTRA_STAMINA,
   SHOP_CLOSE_MINUTES,
   SHOP_OPEN_MINUTES,
@@ -39,7 +40,11 @@ const OK: ActionResult = { ok: true };
 
 /** What an action costs today; hot days make all work harder. */
 export function staminaCost(state: GameState, action: keyof typeof STAMINA_COST): number {
-  return STAMINA_COST[action] + (state.weather === 'heat' ? HEAT_EXTRA_STAMINA : 0);
+  return (
+    STAMINA_COST[action] -
+    ((action === 'hoe' && state.country.hoe) || (action === 'water' && state.country.can) ? 1 : 0) +
+    (state.weather === 'heat' ? HEAT_EXTRA_STAMINA : 0)
+  );
 }
 
 function spend(state: GameState, action: keyof typeof STAMINA_COST): boolean {
@@ -110,7 +115,7 @@ export function shopClosedReason(state: GameState): 'shopStorm' | 'shopClosed' |
 /** Seeds the stall sells today: only crops that can be planted this season. */
 export function seedsForSale(state: GameState): CropId[] {
   const season = seasonOf(state.day);
-  return CROP_IDS.filter((id) => inSeason(id, season));
+  return CROP_IDS.filter((id) => !MARKET_CROPS.includes(id) && inSeason(id, season));
 }
 
 export function buySeed(state: GameState, crop: CropId): ActionResult {
@@ -137,5 +142,8 @@ export function shipAll(state: GameState): number {
     state.fishShipping[id] += state.fish[id];
     state.fish[id] = 0;
   }
+  moved += state.village.eggs;
+  state.village.eggsShipping += state.village.eggs;
+  state.village.eggs = 0;
   return moved;
 }

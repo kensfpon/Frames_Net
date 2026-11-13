@@ -2,15 +2,95 @@
 <html lang="th">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Farm Game</title>
-    <style>
-      html, body { margin: 0; height: 100%; background: #1d2b1f; }
-      #game { height: 100%; display: flex; align-items: center; justify-content: center; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1c291f" />
+    <title>ไร่ล้านนา · Rai Lanna</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="icon" type="image/webp" href="/art/avatar.webp" />
   </head>
   <body>
-    <div id="game"></div>
+    <header class="masthead">
+      <div class="brand wood">
+        <span id="brand-mark"></span>
+        <div><strong>ไร่ล้านนา</strong><small>RAI LANNA FARM</small></div>
+      </div>
+      <nav aria-label="เมนูหลัก">
+        <button data-cmd="travel" class="nav trip-button" title="แผนที่เดินทาง (M)">
+          <i data-icon="pin"></i>เดินทาง
+        </button>
+        <button data-cmd="farm" class="nav active" aria-current="page">
+          <i data-icon="farm"></i>ฟาร์มของฉัน</button
+        ><button data-cmd="journal" class="nav"><i data-icon="book"></i>บันทึกฟาร์ม</button
+        ><button data-cmd="bag" class="nav"><i data-icon="bag"></i>กระเป๋า</button>
+      </nav>
+      <div class="utilities">
+        <button data-cmd="sound" class="round" id="sound" aria-label="ปิดเสียง" title="เปิด / ปิดเสียง">
+          <i data-icon="sound"></i></button
+        ><button data-cmd="settings" class="round" aria-label="ตั้งค่า" title="ตั้งค่า">
+          <i data-icon="settings"></i>
+        </button>
+      </div>
+    </header>
+    <main id="farm">
+      <div class="stage">
+        <div
+          id="game"
+          aria-label="พื้นที่เล่น คลิกแปลงดินเพื่อใช้เครื่องมือ หรือคลิกทางเดินเพื่อเดิน"
+        ></div>
+      </div>
+      <section class="daypanel paper" aria-label="สถานะวันนี้">
+        <div class="daytop">
+          <div id="weather-medal"><i data-icon="sun"></i></div>
+          <div>
+            <div class="daytitle" id="day">วันที่ 1</div>
+            <div class="season" id="season">ฤดูร้อน • ปีที่ 1</div>
+          </div>
+          <span class="dayrule"></span>
+          <div class="time"><b id="clock">06:00</b><small id="weather">แดดอ่อน</small></div>
+        </div>
+        <div class="wallet">
+          <img src="/art/coin.webp" alt="เงิน" /><b id="money">200</b><span>บาท</span>
+        </div>
+        <div class="energy">
+          <i data-icon="bolt"></i><span>พลังงาน</span>
+          <div class="track"><span id="charge"></span></div>
+          <b id="energy">100/100</b>
+        </div>
+      </section>
+      <button id="task-card" class="task paper" data-cmd="journal">
+        <span class="taskicon"><i data-icon="sprout"></i></span
+        ><span><small>สมุดงาน</small><strong id="task">พรวนดินแปลงแรก</strong></span
+        ><i data-icon="chevron"></i>
+      </button>
+      <section class="belt" aria-label="เครื่องมือ">
+        <div class="beltlabel"><span></span><i data-icon="tools"></i> เครื่องมือ <span></span></div>
+        <div id="slots"></div>
+        <button id="seed-choice" data-cmd="seed" hidden></button>
+      </section>
+      <div id="toast" role="status" aria-live="polite"></div>
+      <div class="locations" id="locations"></div>
+    </main>
+    <footer>
+      <span class="location-footer"
+        ><i data-icon="pin"></i> ไร่ล้านนา <em>/</em> <span id="area-name">ไร่ล้านนา</span></span
+      >
+      <div class="keys">
+        <span><kbd>W A S D</kbd> เดิน</span><span><kbd>Space</kbd> ใช้เครื่องมือ</span
+        ><span><kbd>E</kbd> โต้ตอบ</span>
+      </div>
+      <button data-cmd="help"><i data-icon="help"></i> วิธีเล่น <kbd>H</kbd></button>
+    </footer>
+    <dialog id="dialog">
+      <div class="dialoghead">
+        <img class="dialogmark" src="/art/seed.webp" alt="" /><button
+          data-cmd="close"
+          aria-label="ปิดหน้าต่าง"
+        >
+          <i data-icon="close"></i>
+        </button>
+      </div>
+      <div id="page"></div>
+    </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

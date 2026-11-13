@@ -1,0 +1,241 @@
+{
+  "source": "OpenAI ImageGen, generated for Rai Lanna",
+  "preparation": "Original overhead pixel map, palette-scaled transparent sprites and nearest-neighbor rendering. The coop was drawn on a 48px grid.",
+  "audio": "Original real-time synthesis with Web Audio. No external recordings.",
+  "assets": [
+    {
+      "file": "avatar.webp",
+      "dimensions": "48x29",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "axe.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "basket.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "berry.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "can.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "carrot.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "chai.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "coin.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "cook.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "coop.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "cow.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "duck.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "egg.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "eggplant.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "farmer.webp",
+      "dimensions": "144x144",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "fisher.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "hand.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "hen.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "hoe.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "mali.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "papaya.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "pick.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "pineapple.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "plants.webp",
+      "dimensions": "144x240",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "rancher.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "ranger.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "regions/coast.webp",
+      "dimensions": "836x470",
+      "alpha": false,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "regions/forest.webp",
+      "dimensions": "836x470",
+      "alpha": false,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "regions/lake.webp",
+      "dimensions": "836x470",
+      "alpha": false,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "regions/market.webp",
+      "dimensions": "840x576",
+      "alpha": false,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "regions/ranch.webp",
+      "dimensions": "840x576",
+      "alpha": false,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "regions/village.webp",
+      "dimensions": "836x470",
+      "alpha": false,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "rod.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "seed.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "smith.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "stone.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "trader.webp",
+      "dimensions": "48x48",
+      "alpha": true,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "valley.webp",
+      "dimensions": "960x540",
+      "alpha": false,
+      "technical_checks_passed": true
+    },
+    {
+      "file": "wood.webp",
+      "dimensions": "40x40",
+      "alpha": true,
+      "technical_checks_passed": true
+    }
+  ]
+}

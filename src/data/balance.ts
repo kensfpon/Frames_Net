@@ -16,9 +16,20 @@ export const WEATHER_NAMES: Record<Weather, string> = {
 
 /** Chance of each weather per season. Each row sums to 1. */
 export const WEATHER_ODDS: Record<Season, [Weather, number][]> = {
-  hot: [['sunny', 0.6], ['heat', 0.3], ['rain', 0.1]],
-  rainy: [['sunny', 0.3], ['rain', 0.55], ['storm', 0.15]],
-  cool: [['sunny', 0.85], ['rain', 0.15]],
+  hot: [
+    ['sunny', 0.6],
+    ['heat', 0.3],
+    ['rain', 0.1],
+  ],
+  rainy: [
+    ['sunny', 0.3],
+    ['rain', 0.55],
+    ['storm', 0.15],
+  ],
+  cool: [
+    ['sunny', 0.85],
+    ['rain', 0.15],
+  ],
 };
 export const HEAT_EXTRA_STAMINA = 1;
 
@@ -31,7 +42,11 @@ export type CropId =
   | 'pumpkin'
   | 'cabbage'
   | 'tomato'
-  | 'strawberry';
+  | 'strawberry'
+  | 'carrot'
+  | 'pineapple'
+  | 'eggplant'
+  | 'papaya';
 
 export interface CropDef {
   name: string;
@@ -43,18 +58,103 @@ export interface CropDef {
 }
 
 export const CROPS: Record<CropId, CropDef> = {
-  morningGlory: { name: 'ผักบุ้ง', seasons: ['hot', 'rainy', 'cool'], days: 3, seedPrice: 10, sellPrice: 25, color: 0x2fbf6b },
-  longBean: { name: 'ถั่วฝักยาว', seasons: ['hot', 'rainy'], days: 5, seedPrice: 25, sellPrice: 70, color: 0x9bd13a },
-  watermelon: { name: 'แตงโม', seasons: ['hot'], days: 9, seedPrice: 60, sellPrice: 200, color: 0x1f7a3a },
+  morningGlory: {
+    name: 'ผักบุ้ง',
+    seasons: ['hot', 'rainy', 'cool'],
+    days: 3,
+    seedPrice: 10,
+    sellPrice: 25,
+    color: 0x2fbf6b,
+  },
+  longBean: {
+    name: 'ถั่วฝักยาว',
+    seasons: ['hot', 'rainy'],
+    days: 5,
+    seedPrice: 25,
+    sellPrice: 70,
+    color: 0x9bd13a,
+  },
+  watermelon: {
+    name: 'แตงโม',
+    seasons: ['hot'],
+    days: 9,
+    seedPrice: 60,
+    sellPrice: 200,
+    color: 0x1f7a3a,
+  },
   corn: { name: 'ข้าวโพด', seasons: ['rainy'], days: 6, seedPrice: 30, sellPrice: 90, color: 0xf2d13a },
   chili: { name: 'พริก', seasons: ['rainy'], days: 7, seedPrice: 40, sellPrice: 120, color: 0xd9281e },
-  pumpkin: { name: 'ฟักทอง', seasons: ['rainy', 'cool'], days: 8, seedPrice: 50, sellPrice: 160, color: 0xf08a1e },
-  cabbage: { name: 'กะหล่ำปลี', seasons: ['cool'], days: 6, seedPrice: 30, sellPrice: 95, color: 0xb8e6a0 },
-  tomato: { name: 'มะเขือเทศ', seasons: ['cool'], days: 7, seedPrice: 40, sellPrice: 125, color: 0xe8452c },
-  strawberry: { name: 'สตรอว์เบอร์รี', seasons: ['cool'], days: 9, seedPrice: 70, sellPrice: 230, color: 0xff5c8a },
+  pumpkin: {
+    name: 'ฟักทอง',
+    seasons: ['rainy', 'cool'],
+    days: 8,
+    seedPrice: 50,
+    sellPrice: 160,
+    color: 0xf08a1e,
+  },
+  cabbage: {
+    name: 'กะหล่ำปลี',
+    seasons: ['cool'],
+    days: 6,
+    seedPrice: 30,
+    sellPrice: 95,
+    color: 0xb8e6a0,
+  },
+  tomato: {
+    name: 'มะเขือเทศ',
+    seasons: ['cool'],
+    days: 7,
+    seedPrice: 40,
+    sellPrice: 125,
+    color: 0xe8452c,
+  },
+  carrot: {
+    name: 'แครอต',
+    seasons: ['cool', 'hot'],
+    days: 4,
+    seedPrice: 18,
+    sellPrice: 50,
+    color: 0xfc852f,
+  },
+  pineapple: {
+    name: 'สับปะรด',
+    seasons: ['hot', 'rainy'],
+    days: 8,
+    seedPrice: 50,
+    sellPrice: 165,
+    color: 0xf7c552,
+  },
+  eggplant: {
+    name: 'มะเขือม่วง',
+    seasons: ['hot', 'rainy', 'cool'],
+    days: 5,
+    seedPrice: 22,
+    sellPrice: 65,
+    color: 0x8856a8,
+  },
+  papaya: {
+    name: 'มะละกอ',
+    seasons: ['hot', 'rainy'],
+    days: 7,
+    seedPrice: 38,
+    sellPrice: 110,
+    color: 0xfab849,
+  },
+  strawberry: {
+    name: 'สตรอว์เบอร์รี',
+    seasons: ['cool'],
+    days: 9,
+    seedPrice: 70,
+    sellPrice: 230,
+    color: 0xff5c8a,
+  },
 };
 
-export const CROP_IDS = Object.keys(CROPS) as CropId[];
+export const MARKET_CROPS: CropId[] = ['carrot', 'pineapple', 'eggplant', 'papaya'];
+
+export const CROP_IDS = (Object.keys(CROPS) as CropId[])
+  .filter((id) => !MARKET_CROPS.includes(id))
+  .concat(MARKET_CROPS);
 
 export const DAY_START_MINUTES = 6 * 60;
 export const DAY_END_MINUTES = 24 * 60;

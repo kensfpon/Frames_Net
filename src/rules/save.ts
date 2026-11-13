@@ -7,6 +7,10 @@ export function serialize(state: GameState): string {
   return JSON.stringify(state);
 }
 
+import { newCountry, validCountry, MARKET_CROPS } from './country';
+import { FISH } from '../data/fish';
+import { newVillage } from './village';
+
 type Raw = Record<string, unknown>;
 
 const isObject = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -28,7 +32,12 @@ function validTile(t: unknown): t is Tile {
   if (t.crop === null) return true;
   const crop = t.crop;
   if (!isObject(crop)) return false;
-  return typeof crop.id === 'string' && crop.id in CROPS && isCount(crop.growth) && typeof crop.withered === 'boolean';
+  return (
+    typeof crop.id === 'string' &&
+    crop.id in CROPS &&
+    isCount(crop.growth) &&
+    typeof crop.withered === 'boolean'
+  );
 }
 
 /**
@@ -47,7 +56,8 @@ function migrateV1toV2(s: Raw): void {
     for (const row of s.tiles) {
       if (!Array.isArray(row)) continue;
       for (const tile of row) {
-        if (isObject(tile) && isObject(tile.crop) && tile.crop.withered === undefined) tile.crop.withered = false;
+        if (isObject(tile) && isObject(tile.crop) && tile.crop.withered === undefined)
+          tile.crop.withered = false;
       }
     }
   }
@@ -76,13 +86,44 @@ export function deserialize(text: string | null): GameState | null {
   if (s.version === 1) migrateV1toV2(s);
   if (s.version === 2) migrateV2toV3(s);
   if (s.version !== SAVE_VERSION) return null;
-  if (!isCount(s.day) || s.day < 1 || !isCount(s.minutes) || !isCount(s.money) || !isCount(s.stamina)) return null;
+  if (!isCount(s.day) || s.day < 1 || !isCount(s.minutes) || !isCount(s.money) || !isCount(s.stamina))
+    return null;
   if (!isWeather(s.weather) || !isWeather(s.forecast)) return null;
+  if (s.country === undefined) {
+    s.country = newCountry();
+    for (const k of ['seeds', 'produce', 'shipping']) {
+      const bag = s[k];
+      if (isObject(bag)) for (const id of MARKET_CROPS) bag[id] ??= 0;
+    }
+    for (const k of ['fish', 'fishShipping']) {
+      const bag = s[k];
+      if (isObject(bag)) for (const id of FISH_IDS) if (FISH[id].habitat) bag[id] ??= 0;
+    }
+  }
+  if (!validCountry(s.country)) return null;
   if (!validCounts(s.seeds) || !validCounts(s.produce) || !validCounts(s.shipping)) return null;
   if (!validFishCounts(s.fish) || !validFishCounts(s.fishShipping)) return null;
   if (!Array.isArray(s.tiles) || s.tiles.length !== GRID_ROWS) return null;
   for (const row of s.tiles) {
     if (!Array.isArray(row) || row.length !== GRID_COLS || !row.every(validTile)) return null;
   }
+  if (s.village === undefined) s.village = newVillage();
+  const village = s.village;
+  if (!isObject(village) || typeof village.coop !== 'boolean') return null;
+  const counts = ['wood', 'stone', 'berry', 'eggs', 'eggsShipping', 'nest', 'fed', 'orderDay'];
+  const whole = (n: unknown) => isCount(n) && Number.isSafeInteger(n);
+  if (!counts.every((k) => whole(village[k]))) return null;
+  const { gathered, people } = village;
+  if (!isObject(gathered) || !['wood', 'stone', 'berry'].every((k) => whole(gathered[k]))) return null;
+  if (
+    !isObject(people) ||
+    !['mali', 'chai'].every((k) => {
+      const f = people[k];
+      return (
+        isObject(f) && whole(f.points) && Number(f.points) <= 20 && whole(f.talked) && whole(f.gifted)
+      );
+    })
+  )
+    return null;
   return data as unknown as GameState;
 }
