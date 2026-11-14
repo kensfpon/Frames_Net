@@ -1,277 +1,289 @@
-# ไร่ล้านนา (Farm Game)
+# Rai Lanna (ไร่ล้านนา)
 
-เกมจำลองชีวิตเกษตรกรไทย 2 มิติ เล่นบนเว็บเบราว์เซอร์ สร้างด้วย Phaser 4 + TypeScript + Vite
-ปลูกผัก ทำสวน ตกปลา ขุดแร่ เลี้ยงสัตว์ ไปกาด ไปงานบุญ เป็นเกมของเราเอง ในแนวเกมฟาร์มคลาสสิก
-ภาพและบรรยากาศเป็นแนวล้านนา
+**English** · [ภาษาไทย](README.th.md)
+
+A 2D farm-life game set in northern Thailand that runs in the web browser, built with Phaser 4, TypeScript and Vite.
+Grow vegetables, keep an orchard, fish, mine, raise animals, sell at the market and join the village festivals.
+It is our own game in the classic farming genre, with Lanna art and atmosphere.
+
+The game is in English by default and can be switched to Thai at any time.
 
 <p align="center">
-  <img src="docs/readme/farm.webp" alt="ไร่ล้านนา: เรือนชาวไร่ แปลงผัก และบ่อน้ำ" width="100%">
+  <img src="docs/readme/farm.webp" alt="Rai Lanna Farm: the cottage, the vegetable field and the pond" width="100%">
 </p>
 
-> สถานะ: กำลังพัฒนา ระบบหลักเล่นได้ครบวงจรแล้ว (ดูหัวข้อ "แผนงาน" สำหรับสิ่งที่ยังค้าง)
-> ภาพทั้งหมดในหน้านี้ถ่ายจากเกมจริง บางภาพจัดสถานะไว้ก่อน (เช่น ปลูกผักไว้แล้ว มีสัตว์ในคอก) เพื่อให้เห็นระบบครบในภาพเดียว
+> Status: in development. The main systems are playable from end to end (see "Roadmap" for what is still open).
+> Every picture on this page is taken from the real game. Some were staged first (crops already planted, animals already bought) so one picture can show a whole system.
 
-## เริ่มเล่น
+## Getting started
 
-ต้องมี [Node.js](https://nodejs.org) และ npm (ทดสอบกับ Node 26)
+You need [Node.js](https://nodejs.org) and npm (tested with Node 26).
 
 ```bash
 npm install
 npm run dev
 ```
 
-แล้วเปิด http://localhost:5173 ในเบราว์เซอร์
+Then open http://localhost:5173 in your browser.
 
-คำสั่งอื่น ๆ
+Other commands
 
-| คำสั่ง | ทำอะไร |
+| Command | What it does |
 |---|---|
-| `npm test` | รันชุดทดสอบกติกาเกม (Vitest) |
-| `npm run typecheck` | ตรวจชนิดข้อมูลด้วย TypeScript |
-| `npm run build` | ตรวจชนิดแล้วสร้างไฟล์สำหรับเผยแพร่ในโฟลเดอร์ `dist` |
-| `npm run preview` | ลองเปิดไฟล์ที่ build แล้ว |
+| `npm test` | Runs the game-rule tests (Vitest) |
+| `npm run typecheck` | Checks types with TypeScript |
+| `npm run build` | Checks types, then builds the files to publish into `dist` |
+| `npm run preview` | Serves the built files |
 
-ถ้าอยากลองบนมือถือในเครือข่ายเดียวกัน ให้รัน `npm run dev -- --host` แล้วเปิดที่อยู่ IP ของเครื่องบนมือถือ
+To try it on a phone on the same network, run `npm run dev -- --host` and open your computer's IP address on the phone.
 
-## วิธีเล่น
+### Language
+
+Open **Settings** (the gear at the top) and press the **Language · ภาษา** button. The farm is saved and the game reloads in the other language.
+The choice is remembered by the browser.
+
+## How to play
 
 <p align="center">
-  <img src="docs/readme/howto.webp" alt="หน้าจอเกมพร้อมเลขกำกับส่วนต่าง ๆ" width="100%">
+  <img src="docs/readme/howto.webp" alt="The game screen with numbered parts" width="100%">
 </p>
 
-| เลข | คืออะไร | ใช้ยังไง |
+| No. | What it is | How to use it |
 |:-:|---|---|
-| 1 | เมนูหลัก | แผนที่เดินทาง · ไร่ · บันทึกฟาร์ม · กระเป๋า · แต่งตัวและสัตว์เลี้ยง |
-| 2 | สมุดงาน | บอกงานแนะนำถัดไป กดเพื่อเปิดบันทึกฟาร์ม |
-| 3 | วัน ฤดู เวลา เงิน พลังงาน | ทุกงานกินพลังงาน ถ้าหมดจะป่วยและต้องไปโรงพยาบาล |
-| 4 | แถบเครื่องมือ | กดเลข 1–7 หรือคลิกเพื่อเลือก |
-| 5 | แปลงดิน | คลิกช่องดิน ตัวละครจะเดินไปใช้เครื่องมือให้ จอบพรวน บัวรดน้ำ ถุงเมล็ดปลูก มือเก็บเกี่ยว |
-| 6 | ชาวบ้านและป้ายสถานที่ | คลิกหรือเดินเข้าใกล้แล้วกด E เพื่อคุย ซื้อของ รับงาน |
-| 7 | บ่อน้ำ | เลือกเบ็ด (5) แล้วเดินไปริมน้ำกด Space กดอีกครั้งเมื่อปลากินเบ็ดและเข็มเข้าแถบสีเขียว |
-| 8 | ตัวละครของคุณ | เดินด้วย WASD หรือลูกศร หรือคลิกพื้นทางเดิน |
-| 9 | วิธีเล่น | กด H เปิดคู่มือในเกม |
+| 1 | Main menu | Travel map · farm · farm journal · bag · calendar · outfits and pets |
+| 2 | To-do card | Suggests the next job. Press it to open the farm journal |
+| 3 | Day, season, time, money, energy | Every job costs energy. If it runs out you fall ill and wake up in the clinic |
+| 4 | Tool belt | Press 1–7 or click to choose a tool |
+| 5 | Field | Click a soil tile and the farmer walks over to use the tool: hoe tills, seed bag plants, can waters, hand harvests |
+| 6 | Villagers and signposts | Click them, or walk up and press E, to talk, shop or take a job |
+| 7 | Pond | Choose the rod (5), walk to the water and press Space. Press again when a fish bites and the needle is in the green band |
+| 8 | Your farmer | Walk with WASD or the arrow keys, or click a path |
+| 9 | How to play | Press H for the in-game guide |
 
-### ปุ่มลัด
+### Keys
 
-| ปุ่ม | ทำอะไร |
+| Key | What it does |
 |---|---|
-| WASD หรือลูกศร | เดิน |
-| Space | ใช้เครื่องมือกับช่องตรงหน้า (หรือเหวี่ยง/ดึงเบ็ด) |
-| 1 จอบ · 2 บัวรดน้ำ · 3 มือเก็บเกี่ยว · 4 ถุงเมล็ด · 5 เบ็ด · 6 ขวาน · 7 อีเต้อ | เลือกเครื่องมือ |
-| Q | สลับชนิดเมล็ดในถุง |
-| E | โต้ตอบกับสถานที่หรือคนที่อยู่ใกล้ |
-| M · I · J · H | แผนที่เดินทาง · กระเป๋า · บันทึกฟาร์ม · วิธีเล่น |
-| F2 | เริ่มเกมใหม่ (ต้องกด Y ยืนยัน) |
-| Esc | ปิดหน้าต่าง หรือเก็บเบ็ด |
+| WASD or arrows | Walk |
+| Space | Use the tool on the tile in front of you (or cast and reel in) |
+| 1 hoe · 2 watering can · 3 harvest hand · 4 seed bag · 5 rod · 6 axe · 7 pickaxe | Choose a tool |
+| Q | Switch the seed in the bag |
+| E | Interact with the place or person nearby |
+| M · I · J · C · H | Travel map · bag · farm journal · calendar · how to play |
+| F2 | Start a new game (press Y to confirm) |
+| Esc | Close a window, or put the rod away |
 
-### วงจรหนึ่งวัน
+### One day
 
-1. ตื่นเช้า ดูพยากรณ์อากาศของวันนี้และพรุ่งนี้ อ่านรายงานตอนเช้า (ของที่ขายได้ พืชที่โต ข่าวงานประเพณี)
-2. ทำงาน: พรวนดิน ปลูก รดน้ำ เก็บเกี่ยว ตกปลา ขุดแร่ ดูแลสวนและสัตว์
-3. ใส่ของที่จะขายลงลังส่งของ เงินเข้าเช้าวันถัดไป
-4. แวะหมู่บ้านหรือกาดเพื่อซื้อเมล็ด เครื่องมือ อาหาร ส่งงานให้ชาวบ้าน
-5. เข้านอนก่อนพลังหมด เกมบันทึกให้อัตโนมัติทุกเช้า
+1. Wake up, look at the weather for today and tomorrow, and read the morning report (what sold, what grew, festival news).
+2. Work: till, plant, water, harvest, fish, mine, look after the orchard and the animals.
+3. Put what you want to sell in the shipping crate (paid next morning), or sell it yourself at your stall in the fresh market.
+4. Visit the village and the market for seeds, tools, food and villagers' requests.
+5. Go into the cottage and sleep in the bed before your energy runs out. The game saves every morning.
 
-หนึ่งวัน (06:00–24:00) ยาวราว 10 นาทีจริง ถ้าถึงเที่ยงคืนยังไม่นอนจะล้มหลับ เลเวลที่สูงขึ้นทำให้อยู่ดึกได้นานขึ้นและมีพลังงานสูงสุดมากขึ้น
+One day (06:00–24:00) lasts about 10 real minutes. If you are still up at bedtime you collapse and pay a clinic fee.
+A higher level lets you stay up later and gives you more energy.
 
-### บนมือถือ
+### Getting around
 
-เกมรับการแตะ (คลิกพื้นเพื่อเดิน คลิกป้ายเพื่อใช้งาน) ปุ่มและเมนูอยู่บนหน้าจอ ไม่ต้องใช้คีย์บอร์ด
-ฉากเลื่อนซ้ายขวาด้วยนิ้ว ภาพด้านล่างถ่ายจากโหมดจำลองหน้าจอมือถือของเบราว์เซอร์ (กว้าง 390 พิกเซล) ยังไม่ได้ทดสอบการแตะเล่นจริงหรือบนเครื่องจริง
-และยังไม่มีแบบติดตั้งเป็นแอป (เปิดผ่านเบราว์เซอร์เท่านั้น)
+Every place is its own painted map. Walk off the edge along a road, or through a doorway, and you arrive on the matching road of the next map.
+The travel map (M) walks you there automatically, through each place on the way.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/readme/travel.webp" alt="The travel map with a route to each place"></td>
+    <td width="50%"><img src="docs/readme/village.webp" alt="Wiang Kham Village with signposts to every neighbouring place"></td>
+  </tr>
+  <tr>
+    <td align="center">Travel map</td>
+    <td align="center">Wiang Kham Village: signposts point to each road and door</td>
+  </tr>
+</table>
+
+### On a phone
+
+The game takes touch (tap the ground to walk, tap a sign to use it) and every button is on screen, so no keyboard is needed.
+The scene scrolls sideways with a finger. The pictures below come from the browser's phone-screen mode (390 pixels wide); it has not been
+play-tested by touch on a real phone yet, and it cannot be installed as an app (browser only).
 
 <p align="center">
-  <img src="docs/readme/phoneFarm.webp" alt="เกมบนหน้าจอมือถือแนวตั้ง" width="260">
+  <img src="docs/readme/phoneFarm.webp" alt="The game on a tall phone screen" width="260">
   &nbsp;&nbsp;
-  <img src="docs/readme/phoneBag.webp" alt="หน้าต่างกระเป๋าบนมือถือ" width="260">
+  <img src="docs/readme/phoneBag.webp" alt="The bag window on a phone" width="260">
 </p>
 
-## ระบบในเกม
+## What is in the game
 
-### ไร่ ผัก และสภาพอากาศ
+### Farm, crops and weather
 
-- **ผัก 19 ชนิด:** ปลูกในแปลงหน้าบ้าน ต้องรดน้ำทุกวัน ซื้อเมล็ดได้ที่แผงในไร่และที่กาด ราคาและจำนวนวันโตต่างกันตามชนิด
-- **4 ฤดู:** ร้อน → ใบไม้ร่วง → หนาว → ใบไม้ผลิ ฤดูละ 14 วัน (ปีละ 56 วัน) พืชที่ไม่ทนฤดูใหม่จะเหี่ยว เกมเตือนล่วงหน้า 3 วัน
-- **อากาศ 5 แบบ:** แดด ฝน แดดจัด พายุฝน หิมะ มีพยากรณ์ของพรุ่งนี้เสมอ ฝนรดน้ำให้เอง พายุฝนอาจทำให้ต้นเหี่ยว แดดจัดทำให้ทุกงานเหนื่อยขึ้น
-- **กลางวันกลางคืน:** ฟ้ามืดลงตามเวลา โคมไฟที่ปักไว้จะติดเมื่อมืด
+- **29 crops.** Grow them in the field by the cottage and water them every day. Seeds are sold at the seed shop in Wiang Kham Market; price and growing time differ by crop.
+- **4 seasons.** Summer → autumn → winter → spring, 14 days each (56 days a year). Crops that cannot stand the new season wither, and the game warns you 3 days ahead.
+- **5 kinds of weather.** Sunny, rain, heatwave, storm and snow, always with a forecast for tomorrow. Rain waters the field for you, a storm can wilt plants and a heatwave makes every job more tiring.
+- **Day and night.** The sky darkens with the clock and the lamps you have placed light up after dark.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/readme/night.webp" alt="ไร่ตอนกลางคืน โคมหน้าเรือนสว่าง"></td>
-    <td width="50%"><img src="docs/readme/bag.webp" alt="กระเป๋า แยกผักผลผลิต ปลา และของจากหมู่บ้าน"></td>
+    <td width="50%"><img src="docs/readme/night.webp" alt="The farm at night with the cottage lamp lit"></td>
+    <td width="50%"><img src="docs/readme/bag.webp" alt="The bag: seeds, produce, fish and village goods"></td>
   </tr>
   <tr>
-    <td align="center">กลางคืนในไร่</td>
-    <td align="center">กระเป๋า: ผัก ปลา ของป่า ของจากสัตว์</td>
+    <td align="center">Night on the farm</td>
+    <td align="center">The bag: seeds, produce, fish, wild food</td>
   </tr>
 </table>
 
-### ตกปลา
+### Fishing
 
-ปลา 14 ชนิด (น้ำจืด 10 น้ำเค็ม 4) ที่ออกตามฤดู เวลา อากาศ และแหล่งน้ำ แหล่งตกปลามี 3 แห่ง คือบ่อในไร่ สระบัวแก้ว และหาดอ่าวมุก
-ต้องกดเมื่อเข็มเข้าแถบสีเขียว ปลาแต่ละชนิดมีแถบกว้างแคบต่างกัน เบ็ดรุ่นดีทำให้แถบกว้างขึ้น และค่าโชคเพิ่มโอกาสได้ปลาแพง
+34 fish (20 freshwater, 14 saltwater) that appear by season, time of day, weather and water. There are three places to fish: the farm pond,
+Bua Kaew Lake and Pearl Bay Beach. Fishing is seen through your own eyes: wait for the bite, then press when the needle is inside the green band.
+Each fish has a wider or narrower band, a better rod widens it, four kinds of bait raise the odds of rare fish, and Luck helps too.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/readme/lake.webp" alt="สระบัวแก้ว สะพานไม้ น้ำตก และบัว"></td>
-    <td width="50%"><img src="docs/readme/fishing.webp" alt="ชูปลาช่อนที่จับได้"></td>
+    <td width="50%"><img src="docs/readme/lake.webp" alt="Bua Kaew Lake with its jetty, waterfall and lotus"></td>
+    <td width="50%"><img src="docs/readme/fishing.webp" alt="Holding up a snakehead that was just caught"></td>
   </tr>
   <tr>
-    <td align="center">สระบัวแก้ว</td>
-    <td align="center">จับได้แล้ว ชูปลาให้ดู</td>
+    <td align="center">Bua Kaew Lake</td>
+    <td align="center">Caught one</td>
   </tr>
 </table>
 
-### สวนไม้ผล และแยมผลไม้
+### Orchard and fruit jam
 
-- 6 หลุมปลูก ต้นไม้ 4 ชนิด: กล้วย มะม่วง ลำไย ส้ม ซื้อกล้ามาปลูก รดน้ำจนโต แล้วออกผลตามฤดูของมันเป็นรอบ ๆ
-- ใส่ปุ๋ยให้ผลเพิ่ม พายุฝนพัดผลร่วงครึ่งหนึ่งจึงต้องเก็บหนีพายุ ต้นที่ไม่ไหวโค่นทิ้งได้
-- ผลไม้ส่งขายได้ หรือเอาไปทำแยมที่เตาในห้องกินข้าว (ต้องต่อเติมบ้านก่อน) ผลไม้ 2 ส่วนได้แยม 1 กระปุก รอหนึ่งคืน ขายได้เท่าผลไม้ 3 ส่วน
+- 6 plots west of the farm and 4 kinds of tree: banana, mango, longan and tangerine. Clear the wood and rocks from a plot, plant a sapling, water it until it is grown, and it fruits in its own seasons in rounds.
+- Manure gives extra fruit. A storm knocks down half of what is hanging, so pick before it comes. A tree you no longer want can be felled.
+- Fruit can be sold, or made into jam at the stove in the dining room (the house has to be extended first): 2 fruit make 1 jar overnight, worth as much as 3 fruit.
 
 <p align="center">
-  <img src="docs/readme/orchardMap.webp" alt="สวนไม้ผลหกหลุมปลูก มีต้นมะม่วง ต้นไม้ และกล้า" width="80%">
+  <img src="docs/readme/orchardMap.webp" alt="The orchard with grown trees and a sapling" width="80%">
 </p>
 
-### ขุดแร่ เลเวล และเครื่องมือ
+### Mining, levels and tools
 
-- **ถ้ำศิลาดาว:** สายแร่แต่ละจุดจะมีหรือไม่มีในแต่ละวัน ขุดแล้วหมดต้องรอพรุ่งนี้ แร่ 5 ชนิด (ทองแดง เหล็ก เงิน ทองคำ ผลึกดาว) ใช้อีเต้อขุด ได้แร่ชนิดถัดไปติดมือเป็นโบนัสตามค่าโชค
-- **ทุ่งบุกเบิก:** เปิดที่ดินใหม่ด้วยการถางหญ้า ตัดไม้ ทุบหิน แล้วพรวนปลูกต่อได้ ทุ่งผืนที่สูงขึ้นต้องใช้เครื่องมือรุ่นสูงขึ้น
-- **เลเวลและค่าสถานะ:** ทำงานแล้วได้ XP เลเวลขึ้นได้แต้มไปเพิ่ม แรงงาน ความอึด โชค เพิ่มพลังงานสูงสุดและเวลานอน
-- **ช่างตีเหล็ก:** นำแร่ไปอัปเกรดจอบ ขวาน อีเต้อ ซื้อโคมไปปักไว้ตามทาง
-- **ภารกิจชาวเวียง:** รับรางวัลเมื่อเปิดแปลงแรก ขุดแร่ และตกปลาครบ
+- **Star Stone Cave.** Each vein may or may not be there on a given day and is spent once mined. 5 ores (copper, iron, silver, gold, star crystal), dug with the pickaxe, with a bonus ore of the next kind depending on Luck.
+- **Frontier Meadow.** Open new farmland by clearing grass, trees and rocks, then till and plant it. Later plots need better tools.
+- **Levels and stats.** Work earns XP. Each level gives points for Strength, Stamina and Luck, more energy and a later bedtime.
+- **Blacksmith.** Trade ore to upgrade the hoe, axe and pickaxe, and buy lamps to place along the paths.
+- **Village quests.** Rewards for clearing land, mining and fishing.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/readme/mine.webp" alt="ถ้ำศิลาดาว รางเกวียนและสายแร่"></td>
-    <td width="50%"><img src="docs/readme/journal.webp" alt="บันทึกฟาร์ม: เลเวล XP แต้มสถานะ และภารกิจ"></td>
+    <td width="50%"><img src="docs/readme/mine.webp" alt="Star Stone Cave with its cart track and ore veins"></td>
+    <td width="50%"><img src="docs/readme/journal.webp" alt="The farm journal: level, XP, stat points and quests"></td>
   </tr>
   <tr>
-    <td align="center">ถ้ำศิลาดาว</td>
-    <td align="center">บันทึกฟาร์ม: เลเวลและค่าสถานะ</td>
+    <td align="center">Star Stone Cave</td>
+    <td align="center">Farm journal: level and stats</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/readme/meadow.webp" alt="Frontier Meadow covered in grass, stumps and rocks"></td>
+    <td width="50%"><img src="docs/readme/coast.webp" alt="Pearl Bay Beach with its pier and fishing boats"></td>
+  </tr>
+  <tr>
+    <td align="center">Frontier Meadow, waiting to be cleared</td>
+    <td align="center">Pearl Bay Beach</td>
   </tr>
 </table>
 
-### สัตว์เลี้ยงในคอก
+### Ranch animals
 
-ไก่ เป็ด วัว และแกะที่คอกปศุสัตว์ ซื้อสัตว์ ให้อาหารตัวละหนึ่งส่วนต่อวัน ผลผลิต (ไข่ นม ขนแกะ) เข้ากระเป๋าเช้าวันถัดไป
-ขายแยกชิ้นให้พ่อค้าที่กาดได้ นอกจากนี้ยังสร้างเล้าไก่เองที่ไร่ได้
+Hens, ducks, cows and sheep live at the Livestock Ranch. Buy animals, feed each one a portion a day, and the produce (eggs, milk, wool) is in your bag next morning.
+You can also have a chicken coop built on your own farm.
 
 <p align="center">
-  <img src="docs/readme/ranch.webp" alt="คอกปศุสัตว์ มีวัว ไก่ เป็ด แกะ และร้านขายของ" width="80%">
+  <img src="docs/readme/ranch.webp" alt="The Livestock Ranch with cows, ducks and the ranch shop" width="80%">
 </p>
 
-### หมู่บ้าน กาด และเพื่อนบ้าน
+### Village, markets and neighbours
 
-- **หมู่บ้านเวียงคำ:** มะลิและลุงชัยมีระดับมิตรภาพ รับของขวัญ และมีคำขอประจำวัน ลุงชัยยังขายที่เกษตรผืนใหม่ ต่อเติมบ้านตามเลเวล และสร้างเล้าไก่ให้
-- **กระดานคำขอ:** รับงานส่งของ (ผักให้ครัวของมะลิ หรือผลไม้ให้ลุงชัย) ได้เงินและมิตรภาพ วันละหนึ่งงาน
-- **กาดเวียงคำ:** แผงเมล็ดพันธุ์ ร้านอาหาร ช่างตีเหล็ก และพ่อค้ารับซื้อของ
-- **โรงพยาบาลเวียงคำ:** พลังงานหมดแล้วต้องมาพักฟื้น เสียค่ารักษา ฿60
-- **ป่าผักหวานและป่าไผ่:** เก็บของป่า ผักกูด หม่อนป่า กล้วยป่า ที่ป่าผักหวาน (เก็บแล้วงอกใหม่ภายในไม่กี่วัน) และสมุนไพร ไม้ไผ่ ที่ป่าไผ่
+- **Wiang Kham Village.** Mali and Uncle Chai have friendship levels, take gifts and have a daily request. Uncle Chai also sells new farm plots, extends the house as you level up and builds the chicken coop.
+- **Villagers on the move.** 22 named residents walk their own daily routes, some of them along the roads between maps. Walk up and press E to say hello. During a festival they all gather in the village square.
+- **Notice board.** Take one delivery job a day (vegetables for Mali's kitchen or fruit for Uncle Chai) for money and friendship.
+- **Wiang Kham Market.** The seed shop, a food stall, the blacksmith and a trader who buys your goods.
+- **Growers' Fresh Market.** Open your own stall (07:00–18:00): choose an item, a quantity and a price. Customers buy according to their budget, the money comes at once, and festival days bring more of them.
+- **Wiang Kham Clinic.** Where you recover when your energy runs out, for a fee of ฿60.
+- **Sweetleaf Glade and Bamboo Forest.** Gather fiddlehead ferns, wild mulberries and wild bananas in the glade (they grow back in a few days), and herbs and bamboo in the forest.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/readme/village.webp" alt="หมู่บ้านเวียงคำ ลานหินและบ้านไม้ล้านนา"></td>
-    <td width="50%"><img src="docs/readme/market.webp" alt="กาดเวียงคำ แผงผัก ร้านอาหาร และช่างตีเหล็ก"></td>
+    <td width="50%"><img src="docs/readme/market.webp" alt="Wiang Kham Market: food stall, seed shop and blacksmith"></td>
+    <td width="50%"><img src="docs/readme/stall.webp" alt="Setting an item, quantity and price at your own stall"></td>
   </tr>
   <tr>
-    <td align="center">หมู่บ้านเวียงคำ</td>
-    <td align="center">กาดเวียงคำ</td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/readme/noticeboard.webp" alt="กระดานคำขอของมะลิและลุงชัย"></td>
-    <td width="50%"><img src="docs/readme/travel.webp" alt="แผนที่เดินทาง แสดงเส้นทางไปแต่ละสถานที่"></td>
-  </tr>
-  <tr>
-    <td align="center">กระดานคำขอ</td>
-    <td align="center">แผนที่เดินทาง</td>
+    <td align="center">Wiang Kham Market</td>
+    <td align="center">Your own stall in the fresh market</td>
   </tr>
 </table>
 
-### งานประเพณี 6 งานต่อปี
-
-แต่ละงานกินเวลา 90 นาที ร่วมได้เฉพาะวันงานและในเวลางาน วันพายุฝนงานงด เพิ่มมิตรภาพกับเพื่อนบ้านทุกคน
-สรุปตอนเช้าประกาศงานล่วงหน้า 2 วันพร้อมของที่ต้องเตรียม
-
-| งาน | วัน | ได้อะไร |
-|---|---|---|
-| สงกรานต์ ปี๋ใหม่เมือง | ร้อน วันที่ 6 | พลังงานเพิ่ม |
-| บุญบั้งไฟ | ร้อน วันที่ 12 | ใช้ไม้ 3 ท่อน พยากรณ์พรุ่งนี้กลายเป็นฝน |
-| งานแลกเมล็ดพันธุ์ | ใบไม้ร่วง วันที่ 2 | เมล็ดแตงกวา 3 ซอง |
-| แข่งเรือยาว | ใบไม้ร่วง วันที่ 11 | ใช้พลังงาน 30 ชนะ (โอกาส 50%) ได้ ฿200 แพ้ได้ ฿40 |
-| ยี่เป็ง ลอยโคม | หนาว วันที่ 3 | ค่าโคม ฿30 เพื่อนบ้านประทับใจมาก |
-| ตานข้าวใหม่และประกวดพืชผล | หนาว วันที่ 10 | ของชิ้นที่แพงที่สุดในกระเป๋าได้รางวัล 4 เท่าของราคา |
-
 <p align="center">
-  <img src="docs/readme/festival.webp" alt="หน้าต่างงานประเพณี แสดงงานวันนี้และปฏิทิน" width="80%">
+  <img src="docs/readme/noticeboard.webp" alt="The notice board with requests from Mali and Uncle Chai" width="80%">
 </p>
 
-### แต่งตัวและสัตว์เลี้ยง
+### Seven festivals a year
 
-เปลี่ยนชุดได้ 3 สี รับสุนัขหรือแมวมาเลี้ยงหนึ่งตัว ลูบหัวได้วันละครั้ง และเลือกให้ตามเดินทางหรือรอที่บ้าน
+Each festival can be joined only on its day and during its hours, and a storm cancels it. Every festival raises friendship with all the neighbours.
+The morning report announces a festival 2 days ahead with what to bring, and the calendar (C) shows the whole year.
+
+| Festival | Day | Hours | What you get |
+|---|---|---|---|
+| Songkran, Lanna New Year | Summer, day 6 | 09:00–18:00 | Energy +25 |
+| Rocket Festival | Summer, day 12 | 10:00–18:00 | Costs 3 wood; tomorrow's forecast becomes rain |
+| Seed Swap Fair | Autumn, day 2 | 08:00–16:00 | 3 packs of cucumber seeds |
+| Longboat Race | Autumn, day 11 | 10:00–18:00 | Costs 30 energy; win (50% chance) ฿200, lose ฿40 |
+| Yi Peng Lantern Night | Winter, day 3 | 17:00–23:00 | Lantern fee ฿30; the neighbours are very impressed |
+| New Rice Offering & Crop Contest | Winter, day 10 | 09:00–17:00 | The dearest item in your bag wins 4× its price |
+| Blossom Fair | Spring, day 5 | 08:00–18:00 | 4 packs of lettuce seeds |
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/readme/festival.webp" alt="The festival window on Songkran day"></td>
+    <td width="50%"><img src="docs/readme/calendar.webp" alt="The calendar with festival days marked"></td>
+  </tr>
+  <tr>
+    <td align="center">Festival day</td>
+    <td align="center">Calendar</td>
+  </tr>
+</table>
+
+### Outfits and pets
+
+Three outfits to wear, and one dog or cat to adopt. Pet it once a day, and choose whether it walks with you or waits at home.
 
 <p align="center">
-  <img src="docs/readme/style.webp" alt="หน้าต่างแต่งตัวและสัตว์เลี้ยง" width="80%">
+  <img src="docs/readme/style.webp" alt="The outfits and pets window" width="80%">
 </p>
 
-### เซฟอัตโนมัติ
+### Autosave
 
-บันทึกทุกเช้าวันใหม่ลงเบราว์เซอร์ (localStorage) เซฟรุ่นเก่าถูกแปลงเป็นรุ่นล่าสุดให้เอง ปิดเกมกลางวัน งานของวันนั้นจะหาย ต้องเข้านอนก่อน
+The game saves into the browser (localStorage) every new morning, and older saves are upgraded to the current format automatically.
+If you close the game in the middle of a day, that day's work is lost, so go to bed first.
 
-## แผนงาน
+## Roadmap
 
-แต่ละขั้นมีเอกสารออกแบบของตัวเองใน `docs/superpowers/specs/` (บางฉบับเขียนก่อนระบบจะเปลี่ยน เช่น นาข้าว)
+1. ~~The daily loop~~
+2. ~~Calendar, seasons and weather~~ (4 seasons, with snow)
+3. ~~Fishing~~ (first-person view, bait)
+4. ~~Rice paddy~~ removed; land expansion and the Frontier Meadow replace it
+5. ~~Orchard~~ (with fruit jam)
+6. ~~Animals~~ (hens, ducks, cows, sheep)
+7. ~~Village, neighbours, festivals~~ (with the fresh-market stall and the calendar)
+8. ~~Mining, levels, tools and wild food~~
+9. ~~English and Thai~~
+10. Lanna art and sound: mostly done
 
-1. ~~วงจรหนึ่งวัน~~
-2. ~~ปฏิทิน ฤดู และดินฟ้าอากาศ~~ (ตอนนี้ 4 ฤดู มีหิมะ)
-3. ~~ตกปลา~~
-4. ~~นาข้าว~~ ถอดออกแล้ว ใช้การขยายที่เกษตรและทุ่งบุกเบิกแทน
-5. ~~สวนผลไม้~~ (รวมแยมผลไม้)
-6. ~~สัตว์เลี้ยง~~ (ไก่ เป็ด วัว แกะ)
-7. ~~หมู่บ้าน เพื่อนบ้าน งานประเพณี~~
-8. ~~ขุดแร่ เลเวล เครื่องมือ และของป่า~~
-9. ภาพและเสียงแนวล้านนา: ส่วนใหญ่เสร็จแล้ว
+Still to do
 
-สิ่งที่อยากทำต่อ
+- Seasonal scenery (the farm uses one picture in every season)
+- Play-testing on a real phone, and installing to the home screen as an app (PWA)
 
-- ภาพฉากตามฤดู (ตอนนี้ฉากไร่ใช้ภาพเดียวทุกฤดู) และไอคอนผลไม้ในหน้าต่างสวน
-- งานประเพณีของฤดูใบไม้ผลิ (ตอนนี้ฤดูนี้ไม่มีงานเลย)
-- ทดสอบบนมือถือจริง และทำให้ติดตั้งลงหน้าจอหลักเป็นแอปได้ (PWA)
+## About the `.claude/skills` folder
 
-## โครงสร้างโปรเจกต์
-
-```
-src/
-  rules/         กติกาเกมล้วน ๆ ไม่ import Phaser มีชุดทดสอบคู่กัน
-    estate.ts      รวมสวนผลไม้ งานประเพณี และของขาย (orchard, festival, goods, preserves)
-    frontier.ts    เลเวล เครื่องมือ ถางที่ ขุดแร่ ภารกิจ
-    life.ts        ของป่า ป่วย โรงพยาบาล เวลานอน
-    requests.ts    กระดานคำขอ
-    property.ts    ซื้อที่เกษตร ต่อเติมบ้าน
-    country.ts     สถานที่ กาด คอกสัตว์
-    village.ts     เพื่อนบ้าน เล้าไก่ วัสดุ
-  data/          ตารางตัวเลข: พืช ปลา ไม้ผล งานประเพณี ราคา (แก้ความสมดุลที่นี่)
-  presentation/  หน้าจอ: แผนที่ ป้ายสถานที่ หน้าต่าง ไอคอน เสียง เพลง
-  scenes/        ฉาก Phaser: วาดสถานะ รับคำสั่ง และส่งเข้ากติกา
-  storage.ts     อ่านและเขียนเซฟใน localStorage
-public/art/      ภาพทั้งหมดของเกม (รายการอยู่ใน docs/farm-art.json)
-docs/readme/     ภาพหน้าจอที่ใช้ในหน้านี้
-docs/superpowers/specs/   เอกสารออกแบบของแต่ละขั้น
-docs/handoff/             งานที่ส่งต่อระหว่างผู้พัฒนา
-.claude/skills/           skill ช่วยพัฒนาเกมสำหรับ Claude Code (ดูหัวข้อด้านล่าง)
-```
-
-หลักการสำคัญ: สถานะทั้งเกมเป็นข้อมูล JSON ก้อนเดียว และกติกาไม่รู้จัก Phaser
-ฉากมีหน้าที่แค่แสดงผลและส่งคำสั่ง จึงทดสอบกติกาได้โดยไม่ต้องเปิดเบราว์เซอร์
-
-ถ้าอยากปรับความสมดุล (ราคา จำนวนวันโต วันจัดงาน โอกาสเจอปลา ความยาววัน) ดูไฟล์ใน [`src/data/`](src/data/)
-
-## เกี่ยวกับโฟลเดอร์ `.claude/skills`
-
-เป็น skill เกม 17 ตัวที่คัดมาจาก
+These are 17 game-development skills chosen from
 [gamedev-skills/awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
-ให้ Claude Code ใช้ตอนพัฒนาเกมนี้ ไม่เกี่ยวกับตัวเกมตอนรัน ใช้สัญญาอนุญาต Apache-2.0
-(ไฟล์ `LICENSE` และ `NOTICE` อยู่ในโฟลเดอร์นั้น) ลบทิ้งได้โดยไม่กระทบเกม
+for Claude Code to use while developing this game. They play no part when the game runs. They are under the Apache-2.0 licence
+(`LICENSE` and `NOTICE` are in that folder) and can be deleted without affecting the game.
 
-## สัญญาอนุญาต
+## Licence
 
-ยังไม่ได้กำหนดสัญญาอนุญาตสำหรับตัวเกม
+No licence has been chosen for the game itself yet.
